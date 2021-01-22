@@ -1,0 +1,555 @@
+option strict
+dim LOGIC_TABLE%[.]
+load "dat:OPCODES", LOGIC_TABLE%, FALSE
+var MACHINE_NAME$ = "ZLIB"
+var CALLBACK_OUT$ = ""
+var CALLBACK_IN$ = ""
+var CALLBACK_INT$ = ""
+var LIST$ = load("txt:LIST")
+var T0% = 0
+var T1% = 0
+var ST0% = 0
+var ST1% = 0
+var REG_AF% = 0
+var REG_BC% = 1
+var REG_DE% = 2
+var REG_HL% = 3
+var REG_IX% = 4
+var REG_IY% = 5
+var REG_PC% = 6
+var REG_SP% = 7
+var REG_AFS% = 8
+var REG_BCS% = 9
+var REG_DES% = 10
+var REG_HLS% = 11
+var REG_I% = 12
+var REG_R% = 13
+var INT_MODE% = 0
+var INT_ON% = 0
+var emuStatus% = 0
+var currTable% = 0
+var stdin$ = ""
+dim REG%[8 + 4 + 2]
+dim MEM%[&H10000]
+REG%[REG_SP%] = len(MEM%) / 2
+
+common def EMUREGNAME$(ID%)
+  if GetType%(ID%) == 1 then
+    print "Type mismatch(EMUREGNAME$)"
+    stop
+  endif
+  if ID% == 0 then return "AF"
+  if ID% == 1 then return "BC"
+  if ID% == 2 then return "DE"
+  if ID% == 3 then return "HL"
+  if ID% == 4 then return "PC"
+  if ID% == 5 then return "SP"
+  if ID% == 6 then return "IX"
+  if ID% == 7 then return "IY"
+  if ID% == 8 then return "AFS"
+  if ID% == 9 then return "BCS"
+  if ID% == 10 then return "DES"
+  if ID% == 11 then return "HLS"
+  if ID% == 12 then return "A"
+  if ID% == 13 then return "F"
+  if ID% == 14 then return "B"
+  if ID% == 15 then return "C"
+  if ID% == 16 then return "D"
+  if ID% == 17 then return "E"
+  if ID% == 18 then return "H"
+  if ID% == 19 then return "L"
+  if ID% == 20 then return "AS"
+  if ID% == 21 then return "FS"
+  if ID% == 22 then return "BS"
+  if ID% == 23 then return "CS"
+  if ID% == 24 then return "DS"
+  if ID% == 25 then return "ES"
+  if ID% == 26 then return "HS"
+  if ID% == 27 then return "LS"
+  if ID% == 28 then return "I"
+  if ID% == 29 then return "R"
+  if ID% == 30 then return "IXH"
+  if ID% == 31 then return "IXL"
+  if ID% == 32 then return "IYH"
+  if ID% == 33 then return "IYL"
+  print "Out of range(EMUREGNAME$)"
+  stop
+end
+common def EMUREGSIZE%(ID)
+  var r$
+  if GetType%(ID) then
+    r$ = EMUREGNAME$(ID)
+  else
+    r$ = ID
+  endif
+  if r$ == "AF" then return 16
+  if r$ == "BC" then return 16
+  if r$ == "DE" then return 16
+  if r$ == "HL" then return 16
+  if r$ == "PC" then return 16
+  if r$ == "SP" then return 16
+  if r$ == "IX" then return 16
+  if r$ == "IY" then return 16
+  if r$ == "AFS" then return 16
+  if r$ == "BCS" then return 16
+  if r$ == "DES" then return 16
+  if r$ == "HLS" then return 16
+  if r$ == "A" then return 8
+  if r$ == "F" then return 8
+  if r$ == "B" then return 8
+  if r$ == "C" then return 8
+  if r$ == "D" then return 8
+  if r$ == "E" then return 8
+  if r$ == "H" then return 8
+  if r$ == "L" then return 8
+  if r$ == "I" then return 8
+  if r$ == "R" then return 8
+  if r$ == "IXH" then return 8
+  if r$ == "IXL" then return 8
+  if r$ == "IYH" then return 8
+  if r$ == "IYL" then return 8
+  print "Out of range(EMUREGSIZE%)"
+  stop
+end
+def SetFlag b%, v%
+  REG%[0] = REG%[0] and (not (1 << b%))
+  REG%[0] = REG%[0] or (v% << b%)
+end
+def replace$(a$, b$, c$)
+  var ret$
+  var I%
+  for I% = 0 to len(a$) - 1
+    if len(a$) - I% >= len(b$) then
+      if mid$(a$, I%, len(b$)) == b$ then
+        ret$ = ret$ + c$
+        I% = I% + len(b$) - 1
+        next
+      endif
+    endif
+    ret$ = ret$ + a$[I%]
+  next
+  return ret$
+end
+def signExt%(v%)
+  if (v% >> 7) == 1 then
+    v% = v% or &HFFFFFF00
+  endif
+  return v%
+end
+def hex4(h$)
+  if h$=="" then return -1
+  var n = asc(h$)
+  if n >= asc("0") && n <= asc("9") then
+    return n - asc("0")
+  endif
+  if n >= asc("A") && n <= asc("F") then
+    return 10 + (n - asc("A"))
+  endif
+  return -1
+end
+def hex8(h$)
+  var u$ = mid$(h$, 0, 1)
+  var l$ = mid$(h$, 1, 1)
+  return (hex4(u$) << 4) or hex4(l$)
+end
+def hex16(h$)
+  var u$ = mid$(h$, 0, 2)
+  var l$ = mid$(h$, 2, 2)
+  return (hex8(u$) << 8) or hex8(l$)
+end
+def trim$(s$)
+  if len(s$) == 0 then return s$
+  while asc(s$[0]) < 33
+    s$ = right$(s$, len(s$) - 1)
+    if len(s$) == 0 then return s$
+  wend
+  if len(s$) == 0 then return s$
+  while asc(s$[len(s$) - 1]) < 33
+    s$ = left$(s$, len(s$) - 1)
+    if len(s$) == 0 then return s$
+  wend
+  return s$
+end
+common def EMUMEM ADDR%, BYTE%
+  InvalidAddr ADDR%, "EMUMEM"
+  MEM%[ADDR%] = BYTE%
+end
+common def EMUMEM%(ADDR%)
+  InvalidAddr ADDR%, "EMUMEM%"
+  return MEM%[ADDR%]
+end
+common def EMULOAD ADDR%, fname$
+  var dat$
+  load "txt:" + fname$, FALSE out dat$
+  if len(dat$) and 1 == 1 then
+    dat$ = mid$(dat$, 0, len(dat$) - 1)
+  endif
+  var i%
+  for i% = 0 to len(dat$) - 2 step 2
+    MEM%[i% / 2 + ADDR%] = hex8(mid$(dat$, i%, 2))
+  next
+end
+'Returns 1 if the emulator is running, 0 if it is not.
+common def EMUSTATUS()
+  return emuStatus%
+end
+def InvalidAddr ADDR%, c$
+  if ADDR% < 0 || ADDR% >= len(MEM%) then
+    print "Out of range(" + c$ + ")"
+    stop
+  endif
+end
+'Changes the program counter.
+common def EMUJUMP ADDR%
+  InvalidAddr ADDR%, "EMUJUMP"
+  REG%[REG_PC%] = ADDR% and &HFFFF
+end
+common def EMUMACHINENAME name$
+
+end
+common def EMUMACHINENAME$()
+  return MACHINE_NAME$
+end
+common def EMUCPUINFO OUT TYPE$, REG_COUNT%
+  TYPE$ = "Z80"
+  REG_COUNT% = 34
+end
+common def EMUCPUNO%()
+  return 0
+end
+common def EMUCPUNO N
+  if N != 0 then
+    print "Out of range(EMUCPUNO)"
+    stop
+  endif
+end
+common def EMUREGCNT%()
+  return 34
+end
+'Disassembles an instruction
+'  Returns the assembly code and length of instruction
+common def EMUDISASM ADDR% out CODE$, SIZE%
+  var rCode$ = ""
+  var rSize% = 1
+  InvalidAddr ADDR%, "EMUDISASM"
+  var loc% = MEM%[ADDR%]
+  var tbl% = 0
+  if loc% == &HED then
+    loc% = MEM%[(ADDR% + 1) and &HFFFF]
+    tbl% = 1
+    inc rSize%
+  elseif loc% == &HCB then
+    loc% = MEM%[(ADDR% + 1) and &HFFFF]
+    tbl% = 2
+    inc rSize%
+  elseif loc% == &HDD then
+    loc% = MEM%[(ADDR% + 1) and &HFFFF]
+    tbl% = 3
+    inc rSize%
+    if loc% == &HCB then
+      loc% = MEM%[(ADDR% + 2) and &HFFFF]
+      tbl% = 4
+      inc rSize%
+    endif
+  elseif loc% == &HFD then
+    loc% = MEM%[(ADDR% + 1) and &HFFFF]
+    tbl% = 5
+    inc rSize%
+    if loc% == &HCB then
+      loc% = MEM%[(ADDR% + 2) and &HFFFF]
+      tbl% = 6
+      inc rSize%
+    endif
+  endif
+  ADDR% = (ADDR% + rSize%) and &HFFFF
+  var arg8%, arg16%
+  arg8% = MEM%[ADDR%]
+  arg16% = MEM%[ADDR%]
+  ADDR% = (ADDR% + 1) and &HFFFF
+  arg16% = arg16% + (MEM%[ADDR%] << 8)
+  loc% = (loc% + &H100 * tbl%) * 16
+  rCode$ = mid$(LIST$, loc%, 16)
+  var fcode$ = ""
+  var i
+  for i = 0 to len(rCode$) - 1
+    var t$ = mid$(rCode$, i, 2)
+    if t$ == "**" then
+      rSize% = rSize% + 2
+      inc i
+      fcode$ = fcode$ + "&H" + hex$(arg16%, 4)
+    elseif t$[0] == "*" then
+      rSize% = rSize% + 1
+      if arg8% >= 0 then
+        fcode$ = fcode$ + "&H" + hex$(arg8%, 2)
+        arg8% = -1
+      else
+        fcode$ = fcode$ + "&H" + hex$(arg16% >> 8, 2)
+      endif
+    elseif rCode$[i] == "," then
+      fcode$ = fcode$ + ", "
+    else
+      fcode$ = fcode$ + rCode$[i]
+    endif
+  next
+  CODE$ = trim$(fcode$)
+  SIZE% = rSize%
+end
+'Executes a single instruction at the program counter.
+common def EMUSTEP
+  var retTable% = 0
+  var arg8%, arg16%, arg8i%, currInstr%
+  arg8% = MEM%[(REG%[REG_PC%] + 1) and &HFFFF]
+  arg16% = MEM%[(REG%[REG_PC%] + 1) and &HFFFF]
+  arg16% = arg16% + ((MEM%[(REG%[REG_PC%] + 2) and &HFFFF]) << 8)
+  arg8i% = MEM%[(REG%[REG_PC%] - 1) and &HFFFF]
+  currInstr% = MEM%[REG%[REG_PC%]]
+  var I%
+  var tmp% = 0
+  var tmp2% = 0
+  var loc% = 256 * currTable% * 3 + 3 * currInstr%  
+  var size% = LOGIC_TABLE%[loc% + 2]
+  loc% = (LOGIC_TABLE%[loc%] << 8) + LOGIC_TABLE%[loc% + 1]
+  for I% = loc% to loc% + size% - 1
+    var op% = LOGIC_TABLE%[I%]
+    var op0% = op% >> 4
+    var op1% = op% and &HF
+    '--------------------------------
+    'lit
+    '--------------------------------
+    if op0% == 0 then
+      T0% = op1%
+    '--------------------------------
+    'register loading
+    '--------------------------------
+    elseif op0% == 1 then
+      if op1% < 8 then
+        T0% = REG%[op1%]
+      else
+        REG%[op1% - 8] = T0%
+      endif 
+    elseif op0% == 2 then
+      if op1% < 8 then
+        T0% = REG%[op1% + 8]
+      elseif T0% == 12 then
+        REG%[op1% + 8 - 8] = T0% mod 256
+      elseif T0% == 13 then
+        REG%[op1% + 8 - 8] = T0% mod 128
+      else
+        REG%[op1% + 8 - 8] = T0%
+      endif
+    '--------------------------------
+    'math
+    '--------------------------------
+    elseif op0% == 3 then
+      if op1% == 0 then
+        tmp% = T0%
+        T0% = T1%
+        T1% = tmp%
+      elseif op1% == 1 then
+        ST0% = T0%
+        ST1% = T1%
+      elseif op1% == 2 then
+        T0% = ST0%
+        T1% = ST1%
+      elseif op1% == 3 then
+        T0% = T0% + T1%
+      elseif op1% == 4 then
+        T0% = T0% - T1%
+      elseif op1% == 5 then
+        T0% = T0% and T1%
+      elseif op1% == 6 then
+        T0% = T0% or T1%
+      elseif op1% == 7 then
+        T0% = T0% xor T1%
+      elseif op1% == 8 then
+        T0% = not T0%
+      elseif op1% == 9 then
+        T0% = signExt%(T0%)
+      elseif op1% == 10 then
+        T0% = (len(replace$(bin$(T0%), "0", "")) + 1) and 1
+      elseif op1% == 11 then
+        T0% = T0% and 1
+      elseif op1% == 12 then
+        T0% = T0% and 3
+      elseif op1% == 13 then
+        T0% = T0% and &HF
+      elseif op1% == 14 then
+        T0% = T0% and &HFF
+      elseif op1% == 15 then
+        T0% = T0% and &HFFFF
+     endif
+    '--------------------------------
+    'memory
+    '--------------------------------
+      elseif op0% == 4 then
+      if op1% == 0 then
+        T0% = MEM%[T1%]
+      elseif op1% == 1 then
+        T0% = MEM%[T1%]
+        T0% = T0% + (MEM%[T1% + 1] << 8)
+      elseif op1% == 2 then
+        MEM%[T1%] = T0% and &HFF
+      elseif op1% == 3 then
+        MEM%[T1%] = T0% and &HFF
+        MEM%[T1% + 1] = (T0% and &HFF00) >> 8
+      endif
+    '--------------------------------
+    'conditions
+    '--------------------------------
+    elseif op0% == 5 then
+      if op1% == 0 then
+        T0% = T0% == T1%
+      elseif op1% == 1 then
+        T0% = T0% != T1%
+      elseif op1% == 2 then
+        T0% = T0% > T1%
+      elseif op1% == 3 then
+        T0% = T0% < T1%
+      endif
+    '--------------------------------
+    'skipping
+    '--------------------------------
+    elseif op0% == 6 then
+      if T0% != 0 then
+        I% = I% + op1%
+      endif
+    elseif op0% == 7 then
+      if T0% != 0 then
+        I% = I% + op1% + 16
+      endif
+    '--------------------------------
+    'shifting
+    '--------------------------------
+    elseif op0% == 8 then
+      T0% = T0% << op1%
+    elseif op0% == 9 then
+      T0% = T0% >> op1%
+    '--------------------------------
+    'adds
+    '--------------------------------
+    elseif op0% == 10 then
+      T0% = T0% + op1%
+    '--------------------------------
+    'arguments
+    '--------------------------------
+    elseif op0% == 11 then
+      if op1% == 0 then
+        T0% = arg8%
+      elseif op1% == 1 then
+        T0% = arg16%
+      elseif op1% == 2 then
+        T0% = arg8i% and &HFF
+      elseif op1% == 3 then
+        if chkcall(CALLBACK_OUT$) then
+          call CALLBACK_OUT$, T1%, T0%
+        endif
+      elseif op1% == 4 then
+        if chkcall(CALLBACK_IN$) then
+          T0% = call(CALLBACK_IN$, T1%)
+        endif
+      endif
+    '--------------------------------
+    'tables
+    '--------------------------------
+    elseif op0% == 12 then
+      retTable% = op1%
+    '--------------------------------
+    'clear
+    '--------------------------------
+    elseif op0% == 13 then
+      if op1% == 0 then
+        T0% = 0
+      elseif op1% == 1 then
+        T0% = T0% and &H00FF
+      elseif op1% == 2 then
+        T0% = T0% and &HFF00
+      elseif op1% == 3 then
+        print "Unimplemented instruction used."
+      elseif op1% == 4 then
+        print "Invalid instruction used."
+      elseif op1% == 5 then
+        emuStatus% = 0
+      endif
+    '--------------------------------
+    'interrupts
+    '--------------------------------
+    elseif op0% == 14 then
+      if op1% < 3 then
+        INT_MODE% = op1%
+      elseif op1% == 3 then
+        INT_ON% = 0
+      elseif op1% == 4 then
+        INT_ON% = 1
+      endif
+    '--------------------------------
+    'flags
+    '--------------------------------
+    elseif op0% == 15 then
+      tmp% = (not (1 << op1%)) and &HFFFF
+      REG%[0] = REG%[0] and tmp%
+      tmp% = (T0% and 1) << op1%
+      REG%[0] = REG%[0] or tmp%
+    endif
+    var J%
+    for J% = 0 to 7
+      REG%[J%] = REG%[J%] and &HFFFF
+    next
+  next
+  currTable% = retTable%
+  if emuStatus% && INT_ON% then
+    if chkcall(CALLBACK_INT$) then
+      var fire%, intarg%
+      call CALLBACK_INT$, INT_MODE% out fire%, intarg%
+      if fire% && (INT_MODE% == 1 || INT_MODE% == 2) then
+        dec REG%[REG_SP%]
+        dec REG%[REG_SP%]
+        MEM%[REG%[REG_SP%]] = REG%[REG_PC%] and &HFF
+        MEM%[REG%[REG_SP%] + 1] = REG%[REG_PC%] >> 8
+        if INT_MODE% == 1 then
+          REG%[REG_PC%] = &H0038
+        elseif INT_MODE% == 2 then
+          var iaddr% = (REG%[REG_I%] << 8) or (intarg% and &HFF)
+          REG%[REG_PC%] = MEM%[iaddr%] or (MEM%[iaddr% + 1] << 8)
+        endif
+      endif
+    endif
+  endif
+end
+'Runs until halted.
+common def EMURUN ADDR%
+  REG%[REG_PC%] = ADDR%
+  emuStatus% = 1
+  while emuStatus%
+    EMUSTEP
+  wend
+end
+common def EMUTRACE
+  EMURUN REG%[REG_PC%]
+end
+common def EMUSTOP
+  emuStatus% = 0
+end
+common def EMURESET
+  emuStatus% = 0
+  fill REG%, 0
+  currTable% = 0
+  INT_ON% = 0
+  INT_MODE% = 0
+end
+def GetType%(v)
+  if v > 0 == 3 then
+    return 1
+  else
+    return 0
+  endif
+end
+common def EMUPICB v$
+  CALLBACK_IN$ = v$
+end
+common def EMUPOCB v$
+  CALLBACK_OUT$ = v$
+end
+common def EMUINTCB v$
+  CALLBACK_INT$ = v$
+end
+

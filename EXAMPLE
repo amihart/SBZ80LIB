@@ -1,0 +1,42 @@
+'Load the library.
+load "prg3:SBZ80LIB":exec 3
+'Load the test program
+emuload 0, "example.hex"
+'Define our port out callback
+common def PORT_OUT PORT%, VALUE%
+  if PORT% == 0 then
+    print chr$(VALUE%);
+  endif
+end
+emupocb "PORT_OUT"
+'Define our port in callback
+var stdin$ = ""
+common def PORT_IN(PORT%)
+  if PORT% == 0 THEN
+    if len(stdin$) == 0 then
+      input stdin$
+      push stdin$, chr$(10)
+    endif
+    var ret% = asc(stdin$[0])
+    stdin$ = right$(stdin$, len(stdin$) - 1)
+    return ret%
+  endif
+  return 0
+end
+emupicb "PORT_IN"
+'Define our interrupt callback
+var itimer% = millisec
+common def INTERRUPT MODE% out FIRE%, VALUE%
+  VALUE% = 0
+  var ntimer% = millisec
+  if MODE% == 1 && (ntimer% - itimer%) > 150 then
+    itimer% = ntimer%
+    FIRE% = 1
+  else
+    FIRE% = 0
+  endif
+end
+emuintcb "INTERRUPT"
+'Run the program
+emurun 0
+
