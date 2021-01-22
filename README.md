@@ -78,18 +78,24 @@ Here are the ones inspired by the PasocomMini MZ-80C.
 -  'Input: ID number for register
 -  'Output: The register's name as a string
   -  `EMUREGNAME$(ID%)`
--  'Input: Either numerical ID or name of register
+-  'Input: Either numerical ID or string  name of register
 -  'Output: The bit-width of the register
   -  `EMUREGSIZE%(ID)`
--  'Input: A memory and a byte
+-  'Input: ID or name of register and a value
+-  'Output: Sets the register to the specified value
+  -  `EMUREG ID, VALUE%`
+-  'Input: ID or name of register
+-  'Output: Returns the value within a specified register
+  -  `EMUREG%(ID)`
+-  'Input: A memory address and a byte
 -  'Output: Writes the byte to the specified memory address
   -  `EMUMEM ADDR%, BYTE%`
 -  'Input: A memory address
 -  'Output: returns the byte at the specified memory address
-  -  `EMUMEM(ADDR%)`
+  -  `EMUMEM$(ADDR%)`
 -  'Input: Nothing
 -  'Output: 1 if the machine is running, 0 if it is not
-  -  `EMUSTATUS()`
+  -  `EMUSTATUS%()`
 -  'Input: Nothing
 -  'Output: 0
   -  `EMUCPUNO%()`
@@ -107,7 +113,7 @@ Here are the ones inspired by the PasocomMini MZ-80C.
 -  '  instruction's byte-length
   -  `EMUDISASM ADDR% OUT CODE$, SIZE%`
 -  'Input: Nothing
--  'Output: If EMUSTATUS() is 1, executes the next instruction
+-  'Output: If EMUSTATUS%() is 1, executes the next instruction
   -  `EMUSTEP`
 -  'Input: Nothing
 -  'Output: Continously calls EMUSTEP until a HALT (&H76) instruction
@@ -117,7 +123,7 @@ Here are the ones inspired by the PasocomMini MZ-80C.
 -  'Output: Jumps to the memory address then calls EMUTRACE
   -  `EMURUN ADDR%`
 -  'Input: Nothing
--  'Output: Sets EMUSTATUS() to 0
+-  'Output: Sets EMUSTATUS%() to 0
   -  `EMUSTOP`
 
 Here are the brand new ones.
@@ -139,7 +145,7 @@ Here are the brand new ones.
 -  'Output: Sets a callback function for interrutps
 -  `EMUINTCB DEF_BLOCK$`
 -  'Input: Nothing
--  'Output: Sets EMUSTATUS() to 1
+-  'Output: Sets EMUSTATUS%() to 1
 -  `EMUCONT`
 
-I already discussed the callback commands and `EMULOAD`. I added `EMUMACHINENAME` to also be able to change the machine name since this library doesn't actually emulate any real machines. Unlike the PasocomMini MZ-80C, `EMURUN` does not run the code *in parallel* with the SmileBASIC code. It is blocking and will continue blocking until it hits the HALT instruction. The command `EMUSTEP` executes only one instruction as long as as `EMUSTATUS()` is 1. You can use this instead for non-blocking execution. Just throw `EMUSTEP` in your main program loop and it will run in parallel. `EMUSTEP` will then step through the program alongside your regular program and could be stopped with `EMUSTOP` and started again with `EMUCONT`. 
+I already discussed the callback commands and `EMULOAD`. I added `EMUMACHINENAME` to also be able to change the machine name since this library doesn't actually emulate any real machines. Unlike the PasocomMini MZ-80C, `EMURUN` does not run the code *in parallel* with the SmileBASIC code. It is blocking and will continue blocking until it hits the HALT instruction. The command `EMUSTEP` executes only one instruction as long as as `EMUSTATUS%()` is 1. You can use this instead for non-blocking execution. Just throw `EMUSTEP` in your main program loop and it will run in parallel. `EMUSTEP` will then step through the program alongside your regular program and could be stopped with `EMUSTOP` and started again with `EMUCONT`. 
