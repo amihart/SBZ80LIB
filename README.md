@@ -18,7 +18,7 @@ How can we run this program using the library? First, we have to assemble it, an
 
 `print system$("sudo apt install z80asm -y")`
 
-You can assemble the program to a hex file using this command. It's quite lengthy but `Z80ASM` outputs raw binary files which do not have the proper headers to open in SmileBASIC, so we can make it instead output the file as a binary file. 
+You can assemble the program to a hex file using this command. It's quite lengthy but `Z80ASM` outputs raw binary files which do not have the proper headers to open in SmileBASIC, so we can make it instead output the file as a hex file. 
 
 `save "txt:example.hex", system$("sudo z80asm example.asm -o - | xxd -u -c 1 | sed 's/.*://' | cut -d' ' -f2 | xargs | sed 's/ //g'")`
 
