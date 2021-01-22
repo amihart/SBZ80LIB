@@ -1,5 +1,5 @@
 'Load the library.
-load "prg3:SBZ80LIB":exec 3
+exec "PRG3:SBZ80.LIB"
 'Load the test program
 emuload 0, "example.hex"
 'Define our port out callback

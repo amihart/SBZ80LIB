@@ -513,6 +513,7 @@ common def EMUDISASM ADDR% out CODE$, SIZE%
 end
 'Executes a single instruction at the program counter.
 common def EMUSTEP
+  if !emuStatus% then return
   var retTable% = 0
   var arg8%, arg16%, arg8i%, currInstr%
   arg8% = MEM%[(REG%[REG_PC%] + 1) and &HFFFF]
