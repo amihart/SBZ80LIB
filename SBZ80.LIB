@@ -526,6 +526,9 @@ end
 common def EMUTRACE
   EMURUN REG%[REG_PC%]
 end
+common def EMUCONT
+  emuStatus% = 1
+end
 common def EMUSTOP
   emuStatus% = 0
 end
