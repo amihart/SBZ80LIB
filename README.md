@@ -2,7 +2,7 @@
 A SmileBASIC library for Zilog Z80 assembly inspired by the PasocomMini MZ-80C.
 This was written on Pi STARTER but I plan to eventually port it to 3DS and Switch.
 
-To download, first make sure you have GIT installed onto your Pi STARTER. 
+To download, first make sure you have `GIT` installed onto your Pi STARTER. 
 
 `print system$("sudo apt install git -y")`
 
@@ -18,7 +18,7 @@ How can we run this program using the library? First, we have to assemble it, an
 
 `print system$("sudo apt install z80asm -y")`
 
-You can assemble the program to a hex file using this command. It's quite lengthy but Z80AM outputs raw binary files which do not have the proper headers to open in SmileBASIC, so we can make it instead output the file as a binary file. 
+You can assemble the program to a hex file using this command. It's quite lengthy but `Z80ASM` outputs raw binary files which do not have the proper headers to open in SmileBASIC, so we can make it instead output the file as a binary file. 
 
 `save "txt:example.hex", system$("sudo z80asm example.asm -o - | xxd -u -c 1 | sed 's/.*://' | cut -d' ' -f2 | xargs | sed 's/ //g'")`
 
@@ -50,7 +50,7 @@ This file makes use of a few tricks with the compiler. I will be using the Small
 
 `print system$("sudo apt install sdcc -y")`
 
-SDCC will position the very first function at the very beginning of your program. So we make this function call our MAIN function to ensure our program starts with MAIN. We then use `__naked` to get rid of any function prologues or epilogues the compiler sets up. All we want is for this function to do nothing other than call the main function and `HALT`. If you actually check the compiled binary, it compiled this to simply those 2 instructions. When our main program is finished, the `HALT` instruction will be called, which causes the library to stop running the program.
+`SDCC` will position the very first function at the very beginning of your program. So we make this function call our MAIN function to ensure our program starts with MAIN. We then use `__naked` to get rid of any function prologues or epilogues the compiler sets up. All we want is for this function to do nothing other than call the main function and `HALT`. If you actually check the compiled binary, it compiled this to simply those 2 instructions. When our main program is finished, the `HALT` instruction will be called, which causes the library to stop running the program.
 
 Look at the `putchar()` function. This is another compiler trick. If you use the `--reserve-flags-iy` register, it will always use the IX register for indexing. Therefore, we always be assured that the IX register will tell us where compiler-related information is. In this case, `IX + 4` is the starting address for any values passed in as parameters to a function. If it is a single byte, it will be at `IX + 4`. If it is two bytes, it will be at `IX + 4` and `IX + 5`. So in our assembly code, we first `PUSH AF` and later `POP AF` in order to avoid messing with registers and bugging out the compiler, and then we load the value at address `IX + 4` into the A register, and send that out port 0x00.
 
@@ -64,13 +64,13 @@ We can then compile it like so.
 
 `print system$("rm -f ~tmp*")`
 
-The first one actually compiles it. Here we specify that we are using a Z80 machine, that we do not need a CRT0, to reserve the IY flags for the trick we are doing (also these flags are used internally by many real Z80 computers so this option is something best to always use), we say the program starts at memory address 0x0000, and then to spit out a hex file. We name it `~tmp.hex` because SDCC likes to spit out tons of other files which are junk and we do not need. The hex file is also formatted in an incredibly strange way, so the second line deformats it. The final line just deletes all the unneeded files it generated.
+The first one actually compiles it. Here we specify that we are using a Z80 machine, that we do not need a CRT0, to reserve the IY flags for the trick we are doing (also these flags are used internally by many real Z80 computers so this option is something best to always use), we say the program starts at memory address 0x0000, and then to spit out a hex file. We name it `~tmp.hex` because `SDCC` likes to spit out tons of other files which are junk and we do not need. The hex file is also formatted in an incredibly strange way, so the second line deformats it. The final line just deletes all the unneeded files it generated.
 
 Finally, we can then run it simply by taking our same program but changing the `EMULOAD` function to load `example_c.hex` rather than `example.hex`. 
 
 ![img](https://i.imgur.com/7XZUXaN.png)
 
-That is compiled C code running in SmileBASIC! I have gotten this to work on the 3DS as well and the Switch, but the downside is that you cannot install SDCC or Z80ASM on those machines, so any programs you write you will have to compile on your personal computer and transfer them over. I have been working on a Zilog Z80 assembler that runs in SmileBASIC you can find on the Switch public directory.
+That is compiled C code running in SmileBASIC! I have gotten this to work on the 3DS as well and the Switch, but the downside is that you cannot install `SDCC` or `Z80ASM` on those machines, so any programs you write you will have to compile on your personal computer and transfer them over. I have been working on a Zilog Z80 assembler that runs in SmileBASIC you can find on the Switch public directory.
 
 The SBZ80.LIB file has many more commands than the ones I just showed. Many are based off of the PasocomMini MZ-80C but others are original.
 Here are the ones inspired by the PasocomMini MZ-80C.
