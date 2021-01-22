@@ -14,7 +14,7 @@ Let's look at the example Zilog Z80 assembly program.
 
 ![img](https://i.imgur.com/piQLqjL.png)
 
-How can we run this program using the library? First, we have to assemble it, and to do that we need an assembly. Nicely, you do not even have to leave Pi STARTER in order to install one. My preferred assembler is `Z80ASM`.
+How can we run this program using the library? First, we have to assemble it, and to do that we need an assembler. Nicely, you do not even have to leave Pi STARTER in order to install one. My preferred assembler is `Z80ASM`.
 
 `print system$(sudo apt install z80asm -y)`
 
