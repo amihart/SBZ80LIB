@@ -44,7 +44,7 @@ This library is accurate enough to even compile code using the Small Device C Co
 
 This relies on two functions, a `getchar()` and a `putchar()`. I defined these in a file called `headers.h`.
 
-[!img](https://i.imgur.com/y7wvz2A.png)
+![img](https://i.imgur.com/y7wvz2A.png)
 
 This file makes use of a few tricks with the compiler. I will be using the Small Device C Compiler here.
 
