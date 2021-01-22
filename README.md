@@ -16,7 +16,7 @@ Let's look at the example Zilog Z80 assembly program.
 
 How can we run this program using the library? First, we have to assemble it, and to do that we need an assembler. Nicely, you do not even have to leave Pi STARTER in order to install one. My preferred assembler is `Z80ASM`.
 
-`print system$(sudo apt install z80asm -y)`
+`print system$("sudo apt install z80asm -y")`
 
 You can assemble the program to a hex file using this command. It's quite lengthy but Z80AM outputs raw binary files which do not have the proper headers to open in SmileBASIC, so we can make it instead output the file as a binary file. 
 
