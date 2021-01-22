@@ -68,4 +68,76 @@ Finally, we can then run it simply by taking our same program but changing the `
 
 ![img](https://i.imgur.com/7XZUXaN.png)
 
-That is compiled C code running in SmileBASIC! I have gotten this to work on the 3DS as well and the Switch, but the downside is that you cannot install SDCC or Z80ASM on those machines, so any programs you write you will have to compile on your personal computer and transfer them over. I have been working on a Zilog Z80 assembler that runs in SmileBASIC but that is rather experimental and buggy.
+That is compiled C code running in SmileBASIC! I have gotten this to work on the 3DS as well and the Switch, but the downside is that you cannot install SDCC or Z80ASM on those machines, so any programs you write you will have to compile on your personal computer and transfer them over. I have been working on a Zilog Z80 assembler that runs in SmileBASIC you can find on the Switch public directory.
+
+The SBZ80.LIB file has many more commands than the ones I just showed. Many are based off of the PasocomMini MZ-80C but others are original.
+Here are the ones inspired by the PasocomMini MZ-80C.
+
+`'Input: ID number for register
+'Output: The register's name as a string
+EMUREGNAME$(ID%)
+'Input: Either numerical ID or name of register
+'Output: The bit-width of the register
+EMUREGSIZE%(ID)
+'Input: A memory and a byte
+'Output: Writes the byte to the specified memory address
+EMUMEM ADDR%, BYTE%
+'Input: A memory address
+'Output: returns the byte at the specified memory address
+EMUMEM(ADDR%)
+'Input: Nothing
+'Output: 1 if the machine is running, 0 if it is not
+EMUSTATUS()
+'Input: Nothing
+'Output: 0
+EMUCPUNO%()
+'Input: Nothing
+'Output: The machine's name
+EMUMACHINENAME$()
+'Input: Nothing
+'Output: The CPU type and the number of registers
+EMUCPUINFO OUT TYPE$, REG_COUNT%
+'Input: Nothing
+'Output: 34
+EMUREGCNT%()
+'Input: A memory address
+'Ouput: The disassembled instruction at the memory address and the
+'  instruction's byte-length
+EMUDISASM ADDR% OUT CODE$, SIZE%
+'Input: Nothing
+'Output: If EMUSTATUS() is 1, executes the next instruction
+EMUSTEP
+'Input: Nothing
+'Output: Continously calls EMUSTEP until a HALT (&H76) instruction
+'  is reached
+EMUTRACE
+'Input: A memory address
+'Output: Jumps to the memory address then calls EMUTRACE
+EMURUN ADDR%
+'Input: Nothing
+'Output: Sets EMUSTATUS() to 0
+EMUSTOP`
+
+Here are the brand new ones.
+
+`'Input: A hex-formatted TXT: file or a byte-formatted DAT: file
+'Output: Loads the file's data into memory starting at the
+'  specified address
+EMULOAD ADDR%, FILE$
+'Input: A machine name
+'Output: Sets the machine name
+EMUMACHINENAME NAME$
+'Input: The name of a DEF block
+'Output: Sets a callback function for OUT instructions
+EMUPOCB DEF_BLOCK$
+'Input: The name of a DEF block
+'Output: Sets a callback function for IN instructions
+EMUPICB DEF_BLOCK$
+'Input: The name of a DEF block
+'Output: Sets a callback function for interrutps
+EMUINTCB DEF_BLOCK$
+'Input: Nothing
+'Output: Sets EMUSTATUS() to 1
+EMUGO`
+
+I already discossed the callback commands and `EMULOAD`. I added `EMUMACHINENAME` to also be able to change the machine name since this library doesn't actually emulate any real machines. Unlike the PasocomMini MZ-80C, `EMURUN` does not run the code *in parallel* with the SmileBASIC code. It is blocking and will continue blocking until it hits the HALT instruction. The command `EMUSTEP` executes only one instruction as long as as `EMUSTATUS()` is 1. You can use this instead for non-blocking execution. Just throw `EMUSTEP` in your main program loop and it will run in parallel. `EMUSTEP` will then step through the program alongside your regular program and could be stopped with `EMUSTOP` and started again with `EMUGO`. 
