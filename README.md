@@ -32,7 +32,7 @@ I then do the same for the port-in instructions and `EMUPICB` specifies which `D
 
 Finally, I define my interrupt callback which is designated using `EMUINTCB`. Normally, interrupts are triggered by external hardware in the real world, so we have to specify when an interrupt should actually be triggered. This `DEF` block will be called repeatedly when interrupts are enabled, and if you ever return 1 for `FIRE%`, then the interrupt is fired. Mode 2 interrupts also expect a byte of data to be combined with the `I` register. Mode 0 interrupts aren't supported.
 
-Once we've defined all our callbacks, we simply call EMURUN 0 to start the program.
+Once we've defined all our callbacks, we simply call `EMURUN 0` to start the program.
 
 ![img](https://i.imgur.com/FG3U9RJ.png)
 
