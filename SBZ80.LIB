@@ -190,7 +190,7 @@ common def EMULOAD ADDR%, fname$
   next
 end
 'Returns 1 if the emulator is running, 0 if it is not.
-common def EMUSTATUS()
+common def EMUSTATUS%()
   return emuStatus%
 end
 def InvalidAddr ADDR%, c$
