@@ -12,7 +12,7 @@ Then, clone the repository.
 
 Let's look at the example Zilog Z80 assembly program.
 
-![img](https://i.imgur.com/piQLqjL.png)
+![img](https://i.imgur.com/JNR1V6h.png)
 
 How can we run this program using the library? First, we have to assemble it, and to do that we need an assembler. Nicely, you do not even have to leave Pi STARTER in order to install one. My preferred assembler is `Z80ASM`.
 
