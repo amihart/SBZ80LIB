@@ -64,7 +64,7 @@ We can then compile it like so.
 
 `print system$("rm -f ~tmp*")`
 
-The first one actually compiles it. Here we specify that we are using a Z80 machine, that we do not need a CRT0, to reserve the IY flags for the trick we are doing (also these flags are used internally by many real Z80 computers so this option is something best to always use), we say the program starts at memory address 0x0000, and then to spit out a hex file. We name it `~tmp.hex`) because SDCC likes to spit out tons of other files which are junk and we do not need. The hex file is also formatted in an incredibly strange way, so the second line deformats it. The final line just deletes all the unneeded files it generated.
+The first one actually compiles it. Here we specify that we are using a Z80 machine, that we do not need a CRT0, to reserve the IY flags for the trick we are doing (also these flags are used internally by many real Z80 computers so this option is something best to always use), we say the program starts at memory address 0x0000, and then to spit out a hex file. We name it `~tmp.hex` because SDCC likes to spit out tons of other files which are junk and we do not need. The hex file is also formatted in an incredibly strange way, so the second line deformats it. The final line just deletes all the unneeded files it generated.
 
 Finally, we can then run it simply by taking our same program but changing the `EMULOAD` function to load `example_c.hex` rather than `example.hex`. 
 
