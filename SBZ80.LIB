@@ -75,9 +75,218 @@ common def EMUREGNAME$(ID%)
   print "Out of range(EMUREGNAME$)"
   stop
 end
+common def EMUREG%(ID)
+  var r$
+  if !GetType%(ID) then
+    r$ = EMUREGNAME$(ID)
+  else
+    r$ = ID
+  endif
+  
+  if r$ == "AF" then return REG%[REG_AF%]
+  if r$ == "BC" then return REG%[REG_BC%]
+  if r$ == "DE" then return REG%[REG_DE%]
+  if r$ == "HL" then return REG%[REG_HL%]
+  if r$ == "PC" then return REG%[REG_PC%]
+  if r$ == "SP" then return REG%[REG_SP%]
+  if r$ == "IX" then return REG%[REG_IX%]
+  if r$ == "IY" then return REG%[REG_IY%]
+  
+  if r$ == "AFS" then return REG%[REG_AFS%]
+  if r$ == "BCS" then return REG%[REG_BCS%]
+  if r$ == "DES" then return REG%[REG_DES%]
+  if r$ == "HLS" then return REG%[REG_HLS%]
+  
+  if r$ == "A" then return REG%[REG_AF%] >> 8
+  if r$ == "F" then return REG%[REG_BC%] and &HFF
+  if r$ == "B" then return REG%[REG_DE%] >> 8
+  if r$ == "C" then return REG%[REG_HL%] and &HFF
+  if r$ == "D" then return REG%[REG_AF%] >> 8
+  if r$ == "E" then return REG%[REG_BC%] and &HFF
+  if r$ == "H" then return REG%[REG_DE%] >> 8
+  if r$ == "L" then return REG%[REG_HL%] and &HFF
+  
+  if r$ == "AS" then return REG%[REG_AFS%] >> 8
+  if r$ == "FS" then return REG%[REG_AFS%] and &HFF
+  if r$ == "BS" then return REG%[REG_BCS%] >> 8
+  if r$ == "CS" then return REG%[REG_BCS%] and &HFF
+  if r$ == "DS" then return REG%[REG_DES%] >> 8
+  if r$ == "ES" then return REG%[REG_DES%] and &HFF
+  if r$ == "HS" then return REG%[REG_HLS%] >> 8
+  if r$ == "LS" then return REG%[REG_HLS%] and &HFF
+  
+  if r$ == "I" then return REG%[REG_I%]
+  if r$ == "R" then return REG%[REG_R%]
+  
+  if r$ == "IXH" then return REG%[REG_AFS%] >> 8
+  if r$ == "IXL" then return REG%[REG_BCS%] and &HFF
+  if r$ == "IYH" then return REG%[REG_DES%] >> 8
+  if r$ == "IYL" then return REG%[REG_HLS%] and &HFF
+  
+  print "Out of range(EMUREG%)"
+  stop
+end
+def JH%(H%, L%)
+  return (H% and &H00FF) or ((L% and &HFF) << 8)
+end
+def JL%(H%, L%)
+  return (H% and &HFF00) or (L% and &HFF)
+end
+common def EMUREG ID, VALUE%
+  var r$
+  if !GetType%(ID) then
+    r$ = EMUREGNAME$(ID)
+  else
+    r$ = ID
+  endif
+
+  if r$ == "AF" then
+    REG%[REG_AF%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "BC" then
+    REG%[REG_BC%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "DE" then
+    REG%[REG_DE%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "HL" then
+    REG%[REG_HL%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "PC" then
+    REG%[REG_PC%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "SP" then
+    REG%[REG_SP%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "IX" then
+    REG%[REG_IX%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "IY" then
+    REG%[REG_IY%] = VALUE% and &HFFFF
+    return
+  endif
+  
+  if r$ == "AFS" then
+    REG%[REG_AFS%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "BCS" then
+    REG%[REG_BCS%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "DES" then
+    REG%[REG_DES%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "HLS" then
+    REG%[REG_HLS%] = VALUE% and &HFFFF
+    return
+  endif
+  
+  if r$ == "A" then
+    REG%[REG_AF%] = JH%(VALUE%, REG%[REG_AF%])
+    return
+  endif
+  if r$ == "F" then
+    REG%[REG_AF%] = JL%(VALUE%, REG%[REG_AF%])
+    return
+  endif
+  if r$ == "B" then
+    REG%[REG_BC%] = JH%(VALUE%, REG%[REG_BC%])
+    return
+  endif
+  if r$ == "C" then
+    REG%[REG_BC%] = JL%(VALUE%, REG%[REG_BC%])
+    return
+  endif
+  if r$ == "D" then
+    REG%[REG_DE%] = JH%(VALUE%, REG%[REG_DE%])
+    return
+  endif
+  if r$ == "E" then
+    REG%[REG_DE%] = JL%(VALUE%, REG%[REG_DE%])
+    return
+  endif
+  if r$ == "H" then
+    REG%[REG_HL%] = JH%(VALUE%, REG%[REG_HL%])
+    return
+  endif
+  if r$ == "L" then
+    REG%[REG_HL%] = JL%(VALUE%, REG%[REG_HL%])
+    return
+  endif
+  
+  if r$ == "AS" then
+    REG%[REG_AFS%] = JH%(VALUE%, REG%[REG_AFS%])
+    return
+  endif
+  if r$ == "FS" then
+    REG%[REG_AFS%] = JL%(VALUE%, REG%[REG_AFS%])
+    return
+  endif
+  if r$ == "BS" then
+    REG%[REG_BCS%] = JH%(VALUE%, REG%[REG_BCS%])
+    return
+  endif
+  if r$ == "CS" then
+    REG%[REG_BCS%] = JL%(VALUE%, REG%[REG_BCS%])
+    return
+  endif
+  if r$ == "DS" then
+    REG%[REG_DES%] = JH%(VALUE%, REG%[REG_DES%])
+    return
+  endif
+  if r$ == "ES" then
+    REG%[REG_DES%] = JL%(VALUE%, REG%[REG_DES%])
+    return
+  endif
+  if r$ == "HS" then
+    REG%[REG_HLS%] = JH%(VALUE%, REG%[REG_HLS%])
+    return
+  endif
+  if r$ == "LS" then
+    REG%[REG_HLS%] = JL%(VALUE%, REG%[REG_HLS%])
+    return
+  endif
+  
+  if r$ == "I" then
+    REG%[REG_I%] = VALUE% and &HFF
+    return
+  endif
+  if r$ == "R" then
+    REG%[REG_R%] = VALUE% and &H7F
+    return
+  endif
+  if r$ == "IXH" then
+    REG%[REG_AFS%] = JH%(VALUE%, REG%[REG_AFS%])
+    return
+  endif
+  if r$ == "IXL" then
+    REG%[REG_BCS%] = JL%(VALUE%, REG%[REG_BCS%])
+    return
+  endif
+  if r$ == "IYH" then
+    REG%[REG_DES%] = JH%(VALUE%, REG%[REG_DES%])
+    return
+  endif
+  if r$ == "IYL" then
+    REG%[REG_HLS%] = JL%(VALUE%, REG%[REG_HLS%])
+    return
+  endif
+  print "Out of range(EMUREG%)"
+  stop
+end
+
 common def EMUREGSIZE%(ID)
   var r$
-  if GetType%(ID) then
+  if !GetType%(ID) then
     r$ = EMUREGNAME$(ID)
   else
     r$ = ID
@@ -102,6 +311,14 @@ common def EMUREGSIZE%(ID)
   if r$ == "E" then return 8
   if r$ == "H" then return 8
   if r$ == "L" then return 8
+  if r$ == "AS" then return 8
+  if r$ == "FS" then return 8
+  if r$ == "BS" then return 8
+  if r$ == "CS" then return 8
+  if r$ == "DS" then return 8
+  if r$ == "ES" then return 8
+  if r$ == "HS" then return 8
+  if r$ == "LS" then return 8
   if r$ == "I" then return 8
   if r$ == "R" then return 8
   if r$ == "IXH" then return 8
