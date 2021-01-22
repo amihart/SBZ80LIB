@@ -26,9 +26,9 @@ Now since we have our assembled file, let's try to run it in our library. We hav
 
 ![img1](https://i.imgur.com/dJL986x.png)
 
-First, I load the library, then, I load the Zilog Z80 program assembled to a hex file. Next, I define a callback for port-write instructions. In this case, I say if you attempt to write to port 0, then simply print the data you write to port 0 onto the screen assuming the data represents an ASCII character. The `EMUPOCB` command is used to designate which DEF block represents your callback for port-out instructions.
+First, I load the library, then, I load the Zilog Z80 program assembled to a hex file. Next, I define a callback for port-write instructions. In this case, I say if you attempt to write to port 0, then simply print the data you write to port 0 onto the screen assuming the data represents an ASCII character. The `EMUPOCB` command is used to designate which `DEF` block represents your callback for port-out instructions.
 
-I then do the same for the port-in instructions and `EMUPICB` specifies which DEF block is used for port reads. In this case, I create a buffer called `stdin$` and if it is empty when you try to read it, then I pause for the user to type in some text. I then pop the first character out of the buffer and return that as what is read from port 0x00. 
+I then do the same for the port-in instructions and `EMUPICB` specifies which `DEF` block is used for port reads. In this case, I create a buffer called `stdin$` and if it is empty when you try to read it, then I pause for the user to type in some text. I then pop the first character out of the buffer and return that as what is read from port 0x00. 
 
 Finally, I define my interrupt callback which is designated using `EMUINTCB`. Normally, interrupts are triggered by external hardware in the real world, so we have to specify when an interrupt should actually be triggered. This `DEF` block will be called repeatedly when interrupts are enabled, and if you ever return 1 for `FIRE%`, then the interrupt is fired. Mode 2 interrupts also expect a byte of data to be combined with the `I` register. Mode 0 interrupts aren't supported.
 
