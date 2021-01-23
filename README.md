@@ -80,13 +80,13 @@ Here are the ones inspired by the PasocomMini MZ-80C.
 -  'Input: ID number for register
 -  'Output: The register's name as a string
   -  `EMUREGNAME$(ID%)`
--  'Input: Either numerical ID or string  name of register
+-  'Input: String  name of register
 -  'Output: The bit-width of the register
-  -  `EMUREGSIZE%(ID)`
--  'Input: ID or name of register and a value
+  -  `EMUREGSIZE%(r$)`
+-  'Input: String name of register and a value
 -  'Output: Sets the register to the specified value
-  -  `EMUREG ID, VALUE%`
--  'Input: ID or name of register
+  -  `EMUREG r$, VALUE%`
+-  'Input: String name of register
 -  'Output: Returns the value within a specified register
   -  `EMUREG%(ID)`
 -  'Input: A memory address and a byte
@@ -153,3 +153,5 @@ Here are the brand new ones.
 I already discussed the callback commands and `EMULOAD`. I added `EMUMACHINENAME` to also be able to change the machine name since this library doesn't actually emulate any real machines. Unlike the PasocomMini MZ-80C, `EMURUN` does not run the code *in parallel* with the SmileBASIC code. It is blocking and will continue blocking until it hits the HALT instruction. The command `EMUSTEP` executes only one instruction as long as as `EMUSTATUS%()` is 1. You can use this instead for non-blocking execution. Just throw `EMUSTEP` in your main program loop and it will run in parallel. `EMUSTEP` will then step through the program alongside your regular program and could be stopped with `EMUSTOP` and started again with `EMUCONT`. 
 
 Update: In order to avoid having to maintain multiple versions, there are now "compatibility functions" at the top of the library and the example file. The library requires 2 slots now to run, 1 slot for the library itself, and another for the compatibility functions. If the slot it is using conflicts with your program, you can change it by changing `C_SLOT%` at the top of the file.
+
+Update 2: Dropped support for `EMUREG%()` and other instructions accepting multiple data types (registers represented as their string name or integer ID) because the trick I used to do it apparently does not work in SmileBASIC 4 causing issues on the Switch. All functions that could accept IDs or register names now only can accept register names. I also added `EMUSTATE$()` and EMUSTATE. Using `EMUSTATE$()` with the dollar sign rather than the percent sign will not return whether or not the interpreter is running but a string representing the current state of the machine, which then can be restored later using `EMUSTATE`.
