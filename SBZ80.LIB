@@ -63,7 +63,7 @@ end
 '-------------------------------------------------
 dim LOGIC_TABLE%[0]
 LOGIC_TABLE% = C_LOAD(C_SLOT%, "DAT:OPCODES")
-var MACHINE_NAME$ = "ZLIB"
+var MACHINE_NAME$ = "ZLIBv0.8"
 var CALLBACK_OUT$ = ""
 var CALLBACK_IN$ = ""
 var CALLBACK_INT$ = ""
@@ -95,10 +95,6 @@ dim REG%[8 + 4 + 2]
 dim MEM%[&H10000]
 REG%[REG_SP%] = len(MEM%) / 2
 common def EMUREGNAME$(ID%)
-  if GetType%(ID%) == 1 then
-    print "Type mismatch(EMUREGNAME$)"
-    stop
-  endif
   if ID% == 0 then return "AF"
   if ID% == 1 then return "BC"
   if ID% == 2 then return "DE"
@@ -136,14 +132,7 @@ common def EMUREGNAME$(ID%)
   print "Out of range(EMUREGNAME$)"
   stop
 end
-common def EMUREG%(ID)
-  var r$
-  if !GetType%(ID) then
-    r$ = EMUREGNAME$(ID)
-  else
-    r$ = ID
-  endif
-  
+common def EMUREG%(r$)
   if r$ == "AF" then return REG%[REG_AF%]
   if r$ == "BC" then return REG%[REG_BC%]
   if r$ == "DE" then return REG%[REG_DE%]
@@ -193,14 +182,7 @@ end
 def JL%(H%, L%)
   return (H% and &HFF00) or (L% and &HFF)
 end
-common def EMUREG ID, VALUE%
-  var r$
-  if !GetType%(ID) then
-    r$ = EMUREGNAME$(ID)
-  else
-    r$ = ID
-  endif
-
+common def EMUREG r$, VALUE%
   if r$ == "AF" then
     REG%[REG_AF%] = VALUE% and &HFFFF
     return
@@ -345,13 +327,7 @@ common def EMUREG ID, VALUE%
   stop
 end
 
-common def EMUREGSIZE%(ID)
-  var r$
-  if !GetType%(ID) then
-    r$ = EMUREGNAME$(ID)
-  else
-    r$ = ID
-  endif
+common def EMUREGSIZE%(r$)
   if r$ == "AF" then return 16
   if r$ == "BC" then return 16
   if r$ == "DE" then return 16
@@ -817,12 +793,22 @@ common def EMURESET
   INT_ON% = 0
   INT_MODE% = 0
 end
-def GetType%(v)
-  if v > 0 == 3 then
-    return 1
-  else
-    return 0
-  endif
+common def EMUSTATE$()
+  var ret$ = ""
+  var i%
+  for i% = 0 to len(REG%) - 1
+    push ret$, hex$(REG%[i%], 4)
+  next
+  return ret$
+end
+common def EMUSTATE state$
+  var ret$ = ""
+  var i%
+  for i% = 0 to len(state$) - 4 step 4
+    print mid$(state$, i%, 4)
+    REG%[i% / 4] = hex16(mid$(state$, i%, 4))
+  next
+  return ret$
 end
 common def EMUPICB v$
   CALLBACK_IN$ = v$
