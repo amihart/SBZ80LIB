@@ -1,16 +1,16 @@
+'Initialize.
+option strict
+acls
 'Load the library.
 exec "PRG3:SBZ80.LIB"
-'Load the test program
-emuload 0, "example.hex"
-'Define our port out callback
+'Define our callback functions.
+var stdin$ = ""
+var itimer% = millisec
 common def PORT_OUT PORT%, VALUE%
   if PORT% == 0 then
     print chr$(VALUE%);
   endif
 end
-emupocb "PORT_OUT"
-'Define our port in callback
-var stdin$ = ""
 common def PORT_IN(PORT%)
   if PORT% == 0 THEN
     if len(stdin$) == 0 then
@@ -23,9 +23,6 @@ common def PORT_IN(PORT%)
   endif
   return 0
 end
-emupicb "PORT_IN"
-'Define our interrupt callback
-var itimer% = millisec
 common def INTERRUPT MODE% out FIRE%, VALUE%
   VALUE% = 0
   var ntimer% = millisec
@@ -36,7 +33,49 @@ common def INTERRUPT MODE% out FIRE%, VALUE%
     FIRE% = 0
   endif
 end
+'Inform the interpreter.
+emupocb "PORT_OUT"
+emupicb "PORT_IN"
 emuintcb "INTERRUPT"
-'Run the program
+'Example menu.
+var choice$
+@beginning
+color #white
+choice$ = ""
+'Get user choice.
+while choice$ != "1" && choice$ != "2"
+  print "Which example to load?"
+  print " 1) File assembled from EXAMPLE.ASM by the assembler Z80ASM"
+  print " 2) File compiled from EXAMPLE.C by the compiler SDCC"
+  print " 3) Exit"
+  input choice$
+  if choice$ == "3" then
+    stop
+  endif
+  if choice$ != "1" && choice$ != "2" then
+    color #red
+    print "Invalid choice."
+    color #white
+    print "Press any key to continue . . ."
+    while len(inkey$()) > 0:wend
+    while len(inkey$()) == 0:wend
+    cls
+  endif
+wend
+'Load the example program.
+if choice$ == "1" then
+  emuload 0, "EXAMPLE.HEX"
+else
+  emuload 0, "EXAMPLE_C.HEX"
+endif
+'Run the example program.
 emurun 0
-
+'Finish up
+color #lime
+print "Demonstration complete."
+color #white
+print "Press any key to continue . . ."
+while len(inkey$()) > 0:wend
+while len(inkey$()) == 0:wend
+cls
+goto @beginning
