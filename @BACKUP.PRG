@@ -1,151 +1,872 @@
-# SBZ80LIB
-A SmileBASIC library for Zilog Z80 assembly inspired by the PasocomMini MZ-80C.
-This was written on Pi STARTER but I plan to eventually port it to 3DS and Switch.
+option strict
+'-------------------------------------------------
+'Compatibility functions
+'-------------------------------------------------
+var C_SLOT% = 1
+def C_UPPER$(s$)
+  var r$ = ""
+  var i%
+  for i% = 0 to len(s$) - 1
+    var v% = asc(s$[i%])
+    if v% >= asc("a") && v% <= asc("z") then
+      push r$, chr$(v% - (asc("a") - asc("A")))
+    else
+      push r$, chr$(v%)
+    endif
+  next
+  return r$
+end
+def C_EVAL(slot%, cmd$)
+  prgedit slot%
+  prgdel -1
+  prgset "common def C_FUNC()"
+  prgset cmd$
+  prgset "end"
+  exec slot%
+  return C_FUNC()
+end
+def C_HARDWARE$()
+  if chkcall("system$") then
+    return "Raspberry Pi"
+  elseif chkcall("emujoyclr") then
+    return "PasocomMini"
+  elseif chkcall("irread") then
+    return "Nintendo Switch"
+  else
+    return "Nintendo 3DS"
+  endif
+  return "Unknown"
+end
+def C_COLOR slot%, fg%
+  if fg% < 1 || fg% > 15 then
+    print "Out of range(C_COLOR)"
+    stop
+  endif
+  dim m$[1]
+  push m$, "rgb(0, 0, 0)"
+  push m$, "rgb(128, 0, 0)"
+  push m$, "rgb(255, 0, 0)"
+  push m$, "rgb(0, 128, 0)"
+  push m$, "rgb(0, 255, 0)"
+  push m$, "rgb(128, 128, 0)"
+  push m$, "rgb(255, 255, 0)"
+  push m$, "rgb(0, 0, 128)"
+  push m$, "rgb(0, 0, 255)"
+  push m$, "rgb(128, 0, 128)"
+  push m$, "rgb(255, 0, 255)"
+  push m$, "rgb(0, 128, 128)"
+  push m$, "rgb(0, 255, 255)"
+  push m$, "rgb(128, 128, 128)"
+  push m$, "rgb(255, 255, 255)
+  var cmd$ = ""
+  if C_HARDWARE$() == "Nintendo 3DS" then
+    push cmd$, "color " + str$(fg%)
+  else
+    push cmd$, "color " + m$[fg%]
+  endif
+  push cmd$, chr$(10) + "return 0"
+  var junk% = C_EVAL(slot%, cmd$)
+end
+def C_LOAD(slot%, fname$)
+  if len(fname$) < 5 then
+    print "Illegal format(C_LOAD)"
+    stop
+  endif
+  var fmt$ = C_UPPER$(left$(fname$, 4))
+  var cmd$ = ""
+  if C_HARDWARE$() == "Nintendo Switch" then
+    push cmd$, "return loadv(" + chr$(34)
+    push cmd$, fname$ + chr$(34) + ")"
+  elseif fmt$ == "TXT:" then
+    push cmd$, "return load(" + chr$(34)
+    push cmd$, fname$ + chr$(34) + ",false)"
+  else
+    push cmd$, "dim tmp[0]" + chr$(10)
+    push cmd$, "load " + chr$(34) + fname$
+    push cmd$, chr$(34) + "," + "tmp, false"
+    push cmd$, chr$(10) + "return tmp"
+  endif
+  return C_EVAL(slot%, cmd$)
+end
+def C_MILLISEC%(slot%)
+  if C_HARDWARE$() == "Nintendo Switch" then
+    return C_EVAL(slot%, "return millisec()")
+  else
+    return C_EVAL(slot%, "return millisec")
+  endif
+end
+'-------------------------------------------------
+'Main program
+'-------------------------------------------------
+dim LOGIC_TABLE%[0]
+LOGIC_TABLE% = C_LOAD(C_SLOT%, "DAT:OPCODES")
+var MACHINE_NAME$ = "ZLIB"
+var CALLBACK_OUT$ = ""
+var CALLBACK_IN$ = ""
+var CALLBACK_INT$ = ""
+var LIST$ = C_LOAD(C_SLOT%, "TXT:LIST")
+var T0% = 0
+var T1% = 0
+var ST0% = 0
+var ST1% = 0
+var REG_AF% = 0
+var REG_BC% = 1
+var REG_DE% = 2
+var REG_HL% = 3
+var REG_IX% = 4
+var REG_IY% = 5
+var REG_PC% = 6
+var REG_SP% = 7
+var REG_AFS% = 8
+var REG_BCS% = 9
+var REG_DES% = 10
+var REG_HLS% = 11
+var REG_I% = 12
+var REG_R% = 13
+var INT_MODE% = 0
+var INT_ON% = 0
+var emuStatus% = 0
+var currTable% = 0
+var stdin$ = ""
+dim REG%[8 + 4 + 2]
+dim MEM%[&H10000]
+REG%[REG_SP%] = len(MEM%) / 2
+common def EMUREGNAME$(ID%)
+  if GetType%(ID%) == 1 then
+    print "Type mismatch(EMUREGNAME$)"
+    stop
+  endif
+  if ID% == 0 then return "AF"
+  if ID% == 1 then return "BC"
+  if ID% == 2 then return "DE"
+  if ID% == 3 then return "HL"
+  if ID% == 4 then return "PC"
+  if ID% == 5 then return "SP"
+  if ID% == 6 then return "IX"
+  if ID% == 7 then return "IY"
+  if ID% == 8 then return "AFS"
+  if ID% == 9 then return "BCS"
+  if ID% == 10 then return "DES"
+  if ID% == 11 then return "HLS"
+  if ID% == 12 then return "A"
+  if ID% == 13 then return "F"
+  if ID% == 14 then return "B"
+  if ID% == 15 then return "C"
+  if ID% == 16 then return "D"
+  if ID% == 17 then return "E"
+  if ID% == 18 then return "H"
+  if ID% == 19 then return "L"
+  if ID% == 20 then return "AS"
+  if ID% == 21 then return "FS"
+  if ID% == 22 then return "BS"
+  if ID% == 23 then return "CS"
+  if ID% == 24 then return "DS"
+  if ID% == 25 then return "ES"
+  if ID% == 26 then return "HS"
+  if ID% == 27 then return "LS"
+  if ID% == 28 then return "I"
+  if ID% == 29 then return "R"
+  if ID% == 30 then return "IXH"
+  if ID% == 31 then return "IXL"
+  if ID% == 32 then return "IYH"
+  if ID% == 33 then return "IYL"
+  print "Out of range(EMUREGNAME$)"
+  stop
+end
+common def EMUREG%(ID)
+  var r$
+  if !GetType%(ID) then
+    r$ = EMUREGNAME$(ID)
+  else
+    r$ = ID
+  endif
+  
+  if r$ == "AF" then return REG%[REG_AF%]
+  if r$ == "BC" then return REG%[REG_BC%]
+  if r$ == "DE" then return REG%[REG_DE%]
+  if r$ == "HL" then return REG%[REG_HL%]
+  if r$ == "PC" then return REG%[REG_PC%]
+  if r$ == "SP" then return REG%[REG_SP%]
+  if r$ == "IX" then return REG%[REG_IX%]
+  if r$ == "IY" then return REG%[REG_IY%]
+  
+  if r$ == "AFS" then return REG%[REG_AFS%]
+  if r$ == "BCS" then return REG%[REG_BCS%]
+  if r$ == "DES" then return REG%[REG_DES%]
+  if r$ == "HLS" then return REG%[REG_HLS%]
+  
+  if r$ == "A" then return REG%[REG_AF%] >> 8
+  if r$ == "F" then return REG%[REG_BC%] and &HFF
+  if r$ == "B" then return REG%[REG_DE%] >> 8
+  if r$ == "C" then return REG%[REG_HL%] and &HFF
+  if r$ == "D" then return REG%[REG_AF%] >> 8
+  if r$ == "E" then return REG%[REG_BC%] and &HFF
+  if r$ == "H" then return REG%[REG_DE%] >> 8
+  if r$ == "L" then return REG%[REG_HL%] and &HFF
+  
+  if r$ == "AS" then return REG%[REG_AFS%] >> 8
+  if r$ == "FS" then return REG%[REG_AFS%] and &HFF
+  if r$ == "BS" then return REG%[REG_BCS%] >> 8
+  if r$ == "CS" then return REG%[REG_BCS%] and &HFF
+  if r$ == "DS" then return REG%[REG_DES%] >> 8
+  if r$ == "ES" then return REG%[REG_DES%] and &HFF
+  if r$ == "HS" then return REG%[REG_HLS%] >> 8
+  if r$ == "LS" then return REG%[REG_HLS%] and &HFF
+  
+  if r$ == "I" then return REG%[REG_I%]
+  if r$ == "R" then return REG%[REG_R%]
+  
+  if r$ == "IXH" then return REG%[REG_AFS%] >> 8
+  if r$ == "IXL" then return REG%[REG_BCS%] and &HFF
+  if r$ == "IYH" then return REG%[REG_DES%] >> 8
+  if r$ == "IYL" then return REG%[REG_HLS%] and &HFF
+  
+  print "Out of range(EMUREG%)"
+  stop
+end
+def JH%(H%, L%)
+  return (H% and &H00FF) or ((L% and &HFF) << 8)
+end
+def JL%(H%, L%)
+  return (H% and &HFF00) or (L% and &HFF)
+end
+common def EMUREG ID, VALUE%
+  var r$
+  if !GetType%(ID) then
+    r$ = EMUREGNAME$(ID)
+  else
+    r$ = ID
+  endif
 
-To download, first make sure you have `GIT` installed onto your Pi STARTER. 
+  if r$ == "AF" then
+    REG%[REG_AF%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "BC" then
+    REG%[REG_BC%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "DE" then
+    REG%[REG_DE%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "HL" then
+    REG%[REG_HL%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "PC" then
+    REG%[REG_PC%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "SP" then
+    REG%[REG_SP%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "IX" then
+    REG%[REG_IX%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "IY" then
+    REG%[REG_IY%] = VALUE% and &HFFFF
+    return
+  endif
+  
+  if r$ == "AFS" then
+    REG%[REG_AFS%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "BCS" then
+    REG%[REG_BCS%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "DES" then
+    REG%[REG_DES%] = VALUE% and &HFFFF
+    return
+  endif
+  if r$ == "HLS" then
+    REG%[REG_HLS%] = VALUE% and &HFFFF
+    return
+  endif
+  
+  if r$ == "A" then
+    REG%[REG_AF%] = JH%(VALUE%, REG%[REG_AF%])
+    return
+  endif
+  if r$ == "F" then
+    REG%[REG_AF%] = JL%(VALUE%, REG%[REG_AF%])
+    return
+  endif
+  if r$ == "B" then
+    REG%[REG_BC%] = JH%(VALUE%, REG%[REG_BC%])
+    return
+  endif
+  if r$ == "C" then
+    REG%[REG_BC%] = JL%(VALUE%, REG%[REG_BC%])
+    return
+  endif
+  if r$ == "D" then
+    REG%[REG_DE%] = JH%(VALUE%, REG%[REG_DE%])
+    return
+  endif
+  if r$ == "E" then
+    REG%[REG_DE%] = JL%(VALUE%, REG%[REG_DE%])
+    return
+  endif
+  if r$ == "H" then
+    REG%[REG_HL%] = JH%(VALUE%, REG%[REG_HL%])
+    return
+  endif
+  if r$ == "L" then
+    REG%[REG_HL%] = JL%(VALUE%, REG%[REG_HL%])
+    return
+  endif
+  
+  if r$ == "AS" then
+    REG%[REG_AFS%] = JH%(VALUE%, REG%[REG_AFS%])
+    return
+  endif
+  if r$ == "FS" then
+    REG%[REG_AFS%] = JL%(VALUE%, REG%[REG_AFS%])
+    return
+  endif
+  if r$ == "BS" then
+    REG%[REG_BCS%] = JH%(VALUE%, REG%[REG_BCS%])
+    return
+  endif
+  if r$ == "CS" then
+    REG%[REG_BCS%] = JL%(VALUE%, REG%[REG_BCS%])
+    return
+  endif
+  if r$ == "DS" then
+    REG%[REG_DES%] = JH%(VALUE%, REG%[REG_DES%])
+    return
+  endif
+  if r$ == "ES" then
+    REG%[REG_DES%] = JL%(VALUE%, REG%[REG_DES%])
+    return
+  endif
+  if r$ == "HS" then
+    REG%[REG_HLS%] = JH%(VALUE%, REG%[REG_HLS%])
+    return
+  endif
+  if r$ == "LS" then
+    REG%[REG_HLS%] = JL%(VALUE%, REG%[REG_HLS%])
+    return
+  endif
+  
+  if r$ == "I" then
+    REG%[REG_I%] = VALUE% and &HFF
+    return
+  endif
+  if r$ == "R" then
+    REG%[REG_R%] = VALUE% and &H7F
+    return
+  endif
+  if r$ == "IXH" then
+    REG%[REG_AFS%] = JH%(VALUE%, REG%[REG_AFS%])
+    return
+  endif
+  if r$ == "IXL" then
+    REG%[REG_BCS%] = JL%(VALUE%, REG%[REG_BCS%])
+    return
+  endif
+  if r$ == "IYH" then
+    REG%[REG_DES%] = JH%(VALUE%, REG%[REG_DES%])
+    return
+  endif
+  if r$ == "IYL" then
+    REG%[REG_HLS%] = JL%(VALUE%, REG%[REG_HLS%])
+    return
+  endif
+  print "Out of range(EMUREG%)"
+  stop
+end
 
-`print system$("sudo apt install git -y")`
+common def EMUREGSIZE%(ID)
+  var r$
+  if !GetType%(ID) then
+    r$ = EMUREGNAME$(ID)
+  else
+    r$ = ID
+  endif
+  if r$ == "AF" then return 16
+  if r$ == "BC" then return 16
+  if r$ == "DE" then return 16
+  if r$ == "HL" then return 16
+  if r$ == "PC" then return 16
+  if r$ == "SP" then return 16
+  if r$ == "IX" then return 16
+  if r$ == "IY" then return 16
+  if r$ == "AFS" then return 16
+  if r$ == "BCS" then return 16
+  if r$ == "DES" then return 16
+  if r$ == "HLS" then return 16
+  if r$ == "A" then return 8
+  if r$ == "F" then return 8
+  if r$ == "B" then return 8
+  if r$ == "C" then return 8
+  if r$ == "D" then return 8
+  if r$ == "E" then return 8
+  if r$ == "H" then return 8
+  if r$ == "L" then return 8
+  if r$ == "AS" then return 8
+  if r$ == "FS" then return 8
+  if r$ == "BS" then return 8
+  if r$ == "CS" then return 8
+  if r$ == "DS" then return 8
+  if r$ == "ES" then return 8
+  if r$ == "HS" then return 8
+  if r$ == "LS" then return 8
+  if r$ == "I" then return 8
+  if r$ == "R" then return 8
+  if r$ == "IXH" then return 8
+  if r$ == "IXL" then return 8
+  if r$ == "IYH" then return 8
+  if r$ == "IYL" then return 8
+  print "Out of range(EMUREGSIZE%)"
+  stop
+end
+def SetFlag b%, v%
+  REG%[0] = REG%[0] and (not (1 << b%))
+  REG%[0] = REG%[0] or (v% << b%)
+end
+def replace$(a$, b$, c$)
+  var ret$
+  var I%
+  for I% = 0 to len(a$) - 1
+    if len(a$) - I% >= len(b$) then
+      if mid$(a$, I%, len(b$)) == b$ then
+        ret$ = ret$ + c$
+        I% = I% + len(b$) - 1
+        next
+      endif
+    endif
+    ret$ = ret$ + a$[I%]
+  next
+  return ret$
+end
+def signExt%(v%)
+  if (v% >> 7) == 1 then
+    v% = v% or &HFFFFFF00
+  endif
+  return v%
+end
+def hex4(h$)
+  if h$=="" then return -1
+  var n = asc(h$)
+  if n >= asc("0") && n <= asc("9") then
+    return n - asc("0")
+  endif
+  if n >= asc("A") && n <= asc("F") then
+    return 10 + (n - asc("A"))
+  endif
+  return -1
+end
+def hex8(h$)
+  var u$ = mid$(h$, 0, 1)
+  var l$ = mid$(h$, 1, 1)
+  return (hex4(u$) << 4) or hex4(l$)
+end
+def hex16(h$)
+  var u$ = mid$(h$, 0, 2)
+  var l$ = mid$(h$, 2, 2)
+  return (hex8(u$) << 8) or hex8(l$)
+end
+def trim$(s$)
+  if len(s$) == 0 then return s$
+  while asc(s$[0]) < 33
+    s$ = right$(s$, len(s$) - 1)
+    if len(s$) == 0 then return s$
+  wend
+  if len(s$) == 0 then return s$
+  while asc(s$[len(s$) - 1]) < 33
+    s$ = left$(s$, len(s$) - 1)
+    if len(s$) == 0 then return s$
+  wend
+  return s$
+end
+common def EMUMEM ADDR%, BYTE%
+  InvalidAddr ADDR%, "EMUMEM"
+  MEM%[ADDR%] = BYTE%
+end
+common def EMUMEM%(ADDR%)
+  InvalidAddr ADDR%, "EMUMEM%"
+  return MEM%[ADDR%]
+end
+common def EMULOAD ADDR%, fname$
+  var dat$ = C_LOAD(C_SLOT%, "TXT:" + fname$)
+  if len(dat$) and 1 == 1 then
+    dat$ = mid$(dat$, 0, len(dat$) - 1)
+  endif
+  var i%
+  for i% = 0 to len(dat$) - 2 step 2
+    MEM%[i% / 2 + ADDR%] = hex8(mid$(dat$, i%, 2))
+  next
+end
+'Returns 1 if the emulator is running, 0 if it is not.
+common def EMUSTATUS%()
+  return emuStatus%
+end
+def InvalidAddr ADDR%, c$
+  if ADDR% < 0 || ADDR% >= len(MEM%) then
+    print "Out of range(" + c$ + ")"
+    stop
+  endif
+end
+'Changes the program counter.
+common def EMUJUMP ADDR%
+  InvalidAddr ADDR%, "EMUJUMP"
+  REG%[REG_PC%] = ADDR% and &HFFFF
+end
+common def EMUMACHINENAME name$
 
-Then, clone the repository.
-
-`print system$("sudo git clone http://github.com/amihart/SBZ80LIB")`
-
-Let's look at the example Zilog Z80 assembly program.
-
-![img](https://i.imgur.com/JNR1V6h.png)
-
-How can we run this program using the library? First, we have to assemble it, and to do that we need an assembler. Nicely, you do not even have to leave Pi STARTER in order to install one. My preferred assembler is `Z80ASM`.
-
-`print system$("sudo apt install z80asm -y")`
-
-You can assemble the program to a hex file using this command. It's quite lengthy but `Z80ASM` outputs raw binary files which do not have the proper headers to open in SmileBASIC, so we can make it instead output the file as a hex file. 
-
-`save "txt:example.hex", system$("sudo z80asm example.asm -o - | xxd -u -c 1 | sed 's/.*://' | cut -d' ' -f2 | xargs | sed 's/ //g'")`
-
-Now since we have our assembled file, let's try to run it in our library. We have to take note that the program is printing characters to the screen by writing a byte to port 0x00. It is also reading characters from user input by reading bytes from port 0x00. So in order to run the program, we must define the behavior of these ports. It also uses a Mode 1 interrupt, so we also have to tell it when interrupts occur. Take a look at this program below.
-
-![img1](https://i.imgur.com/dJL986x.png)
-
-First, I load the library, then, I load the Zilog Z80 program assembled to a hex file. Next, I define a callback for port-write instructions. In this case, I say if you attempt to write to port 0, then simply print the data you write to port 0 onto the screen assuming the data represents an ASCII character. The `EMUPOCB` command is used to designate which `DEF` block represents your callback for port-out instructions.
-
-I then do the same for the port-in instructions and `EMUPICB` specifies which `DEF` block is used for port reads. In this case, I create a buffer called `stdin$` and if it is empty when you try to read it, then I pause for the user to type in some text. I then pop the first character out of the buffer and return that as what is read from port 0x00. 
-
-Finally, I define my interrupt callback which is designated using `EMUINTCB`. Normally, interrupts are triggered by external hardware in the real world, so we have to specify when an interrupt should actually be triggered. This `DEF` block will be called repeatedly when interrupts are enabled, and if you ever return 1 for `FIRE%`, then the interrupt is fired. Mode 2 interrupts also expect a byte of data to be combined with the `I` register. Mode 0 interrupts aren't supported.
-
-Once we've defined all our callbacks, we simply call `EMURUN 0` to start the program.
-
-![img](https://i.imgur.com/FG3U9RJ.png)
-
-This library implements every instruction that the PasocomMini MZ-80C does and in fact was unit tested with it to ensure consistency. The only things that have not been fully tested are the repeating instructions (e.g. `LDIR`) and the interrupts, as these are not easy to unit test, so please report any bugs.
-
-This library is accurate enough to even compile code using the Small Device C Compiler and then run the C code in SmileBASIC. Let's actually demonstrate this. Here is a simple C program that will print a few messages to the screen, ask you your name, let you type it in, then say it back to you.
-
-![img](https://i.imgur.com/ABXzcr7.png)
-
-This relies on two functions, a `getchar()` and a `putchar()`. I defined these in a file called `headers.h`.
-
-![img](https://i.imgur.com/y7wvz2A.png)
-
-This file makes use of a few tricks with the compiler. I will be using the Small Device C Compiler here.
-
-`print system$("sudo apt install sdcc -y")`
-
-`SDCC` will position the very first function at the very beginning of your program. So we make this function call our MAIN function to ensure our program starts with MAIN. We then use `__naked` to get rid of any function prologues or epilogues the compiler sets up. All we want is for this function to do nothing other than call the main function and `HALT`. If you actually check the compiled binary, it compiles this to simply those 2 instructions. When our main program is finished, the `HALT` instruction will be called, which causes the library to stop running the program.
-
-Look at the `putchar()` function. This is another compiler trick. If you use the `--reserve-flags-iy` option when compiling, it will always use the `IX` register for indexing. Therefore, we always be assured that the `IX` register will tell us where compiler-related information is. In this case, `IX + 4` is the starting address for any values passed in as parameters to a function. If it is a single byte, it will be at `IX + 4`. If it is two bytes, it will be at `IX + 4` and `IX + 5`. So in our assembly code, we first `PUSH AF` and later `POP AF` in order to avoid messing with registers and bugging out the compiler, and then we load the value at address `IX + 4` into the `A` register, and send that out port 0x00.
-
-There may be a way to do this with one function, but I'm not sure, so I broke `getchar()` up into two functions. The first is `__getchari()` which is not intended to be called directly as it is wrapped by `getchar()`. Like `putchar()`, it grabs the arguments, but this time the argument is two bytes long because it is a pointer to where the variable `c` is stored. It reads a byte from port 0x00 into the `A` register, and then stores that into the memory address pointed to by the argument. Meaning, `c` will now hold the value it read. We then use `(void)c;` to tell the compiler that we have indeed used this variable. The compiler ignores whatever is done in `__asm` blocks, so it will think it is unused unless we explicitly say it has been used. We finally then use `getchar()` to just wrap `__getchari()` into something nicer to use.
-
-We can then compile it like so.
-
-`print system$("sdcc -mz80 --no-std-crt0 --reserve-regs-iy --code-loc 0x0000 example.c -o ~tmp.hex")`
-
-`print system$("echo $(cut -c 10- < ~tmp.hex | sed 's/..$//' | tr -d '\n') > example_c.hex")`
-
-`print system$("rm -f ~tmp*")`
-
-The first one actually compiles it. Here we specify that we are using a Z80 machine, that we do not need a CRT0, to reserve the `IY` flags for the trick we are doing (also these flags are used internally by many real Z80 computers so this option is something best to always use), we say the program starts at memory address 0x0000, and then to spit out a hex file. We name it `~tmp.hex` because `SDCC` likes to spit out tons of other files which are junk and we do not need. The hex file is also formatted in an incredibly strange way, so the second line deformats it. The final line just deletes all the unneeded files it generated.
-
-Finally, we can then run it simply by taking our same program but changing the `EMULOAD` function to load `example_c.hex` rather than `example.hex`. 
-
-![img](https://i.imgur.com/7XZUXaN.png)
-
-That is compiled C code running in SmileBASIC! I have gotten this to work on the 3DS as well and the Switch, but the downside is that you cannot install `SDCC` or `Z80ASM` on those machines, so any programs you write you will have to compile on your personal computer and transfer them over. I have been working on a Zilog Z80 assembler that runs in SmileBASIC you can find on the Switch public directory.
-
-The SBZ80.LIB file has many more commands than the ones I just showed. Many are based off of the PasocomMini MZ-80C but others are original.
-Here are the ones inspired by the PasocomMini MZ-80C.
-
--  'Input: ID number for register
--  'Output: The register's name as a string
-  -  `EMUREGNAME$(ID%)`
--  'Input: Either numerical ID or string  name of register
--  'Output: The bit-width of the register
-  -  `EMUREGSIZE%(ID)`
--  'Input: ID or name of register and a value
--  'Output: Sets the register to the specified value
-  -  `EMUREG ID, VALUE%`
--  'Input: ID or name of register
--  'Output: Returns the value within a specified register
-  -  `EMUREG%(ID)`
--  'Input: A memory address and a byte
--  'Output: Writes the byte to the specified memory address
-  -  `EMUMEM ADDR%, BYTE%`
--  'Input: A memory address
--  'Output: returns the byte at the specified memory address
-  -  `EMUMEM$(ADDR%)`
--  'Input: Nothing
--  'Output: 1 if the machine is running, 0 if it is not
-  -  `EMUSTATUS%()`
--  'Input: Nothing
--  'Output: 0
-  -  `EMUCPUNO%()`
--  'Input: Nothing
--  'Output: The machine's name
-  -  `EMUMACHINENAME$()`
--  'Input: Nothing
--  'Output: The CPU type and the number of registers
-  -  `EMUCPUINFO OUT TYPE$, REG_COUNT%`
--  'Input: Nothing
--  'Output: 34
-  -  `EMUREGCNT%()`
--  'Input: A memory address
--  'Ouput: The disassembled instruction at the memory address and the
--  '  instruction's byte-length
-  -  `EMUDISASM ADDR% OUT CODE$, SIZE%`
--  'Input: Nothing
--  'Output: If EMUSTATUS%() is 1, executes the next instruction
-  -  `EMUSTEP`
--  'Input: Nothing
--  'Output: Continously calls EMUSTEP until a HALT (&H76) instruction
--  '  is reached
-  -  `EMUTRACE`
--  'Input: A memory address
--  'Output: Jumps to the memory address then calls EMUTRACE
-  -  `EMURUN ADDR%`
--  'Input: Nothing
--  'Output: Sets EMUSTATUS%() to 0
-  -  `EMUSTOP`
-
-Here are the brand new ones.
-
--  'Input: A hex-formatted TXT: file or a byte-formatted DAT: file
--  'Output: Loads the file's data into memory starting at the
--  '  specified address
--  `EMULOAD ADDR%, FILE$`
--  'Input: A machine name
--  'Output: Sets the machine name
--  `EMUMACHINENAME NAME$`
--  'Input: The name of a DEF block
--  'Output: Sets a callback function for OUT instructions
--  `EMUPOCB DEF_BLOCK$`
--  'Input: The name of a DEF block
--  'Output: Sets a callback function for IN instructions
--  `EMUPICB DEF_BLOCK$`
--  'Input: The name of a DEF block
--  'Output: Sets a callback function for interrutps
--  `EMUINTCB DEF_BLOCK$`
--  'Input: Nothing
--  'Output: Sets EMUSTATUS%() to 1
--  `EMUCONT`
-
-I already discussed the callback commands and `EMULOAD`. I added `EMUMACHINENAME` to also be able to change the machine name since this library doesn't actually emulate any real machines. Unlike the PasocomMini MZ-80C, `EMURUN` does not run the code *in parallel* with the SmileBASIC code. It is blocking and will continue blocking until it hits the HALT instruction. The command `EMUSTEP` executes only one instruction as long as as `EMUSTATUS%()` is 1. You can use this instead for non-blocking execution. Just throw `EMUSTEP` in your main program loop and it will run in parallel. `EMUSTEP` will then step through the program alongside your regular program and could be stopped with `EMUSTOP` and started again with `EMUCONT`. 
+end
+common def EMUMACHINENAME$()
+  return MACHINE_NAME$
+end
+common def EMUCPUINFO OUT TYPE$, REG_COUNT%
+  TYPE$ = "Z80"
+  REG_COUNT% = 34
+end
+common def EMUCPUNO%()
+  return 0
+end
+common def EMUCPUNO N
+  if N != 0 then
+    print "Out of range(EMUCPUNO)"
+    stop
+  endif
+end
+common def EMUREGCNT%()
+  return 34
+end
+'Disassembles an instruction
+'  Returns the assembly code and length of instruction
+common def EMUDISASM ADDR% out CODE$, SIZE%
+  var rCode$ = ""
+  var rSize% = 1
+  InvalidAddr ADDR%, "EMUDISASM"
+  var loc% = MEM%[ADDR%]
+  var tbl% = 0
+  if loc% == &HED then
+    loc% = MEM%[(ADDR% + 1) and &HFFFF]
+    tbl% = 1
+    inc rSize%
+  elseif loc% == &HCB then
+    loc% = MEM%[(ADDR% + 1) and &HFFFF]
+    tbl% = 2
+    inc rSize%
+  elseif loc% == &HDD then
+    loc% = MEM%[(ADDR% + 1) and &HFFFF]
+    tbl% = 3
+    inc rSize%
+    if loc% == &HCB then
+      loc% = MEM%[(ADDR% + 2) and &HFFFF]
+      tbl% = 4
+      inc rSize%
+    endif
+  elseif loc% == &HFD then
+    loc% = MEM%[(ADDR% + 1) and &HFFFF]
+    tbl% = 5
+    inc rSize%
+    if loc% == &HCB then
+      loc% = MEM%[(ADDR% + 2) and &HFFFF]
+      tbl% = 6
+      inc rSize%
+    endif
+  endif
+  ADDR% = (ADDR% + rSize%) and &HFFFF
+  var arg8%, arg16%
+  arg8% = MEM%[ADDR%]
+  arg16% = MEM%[ADDR%]
+  ADDR% = (ADDR% + 1) and &HFFFF
+  arg16% = arg16% + (MEM%[ADDR%] << 8)
+  loc% = (loc% + &H100 * tbl%) * 16
+  rCode$ = mid$(LIST$, loc%, 16)
+  var fcode$ = ""
+  var i
+  for i = 0 to len(rCode$) - 1
+    var t$ = mid$(rCode$, i, 2)
+    if t$ == "**" then
+      rSize% = rSize% + 2
+      inc i
+      fcode$ = fcode$ + "&H" + hex$(arg16%, 4)
+    elseif t$[0] == "*" then
+      rSize% = rSize% + 1
+      if arg8% >= 0 then
+        fcode$ = fcode$ + "&H" + hex$(arg8%, 2)
+        arg8% = -1
+      else
+        fcode$ = fcode$ + "&H" + hex$(arg16% >> 8, 2)
+      endif
+    elseif rCode$[i] == "," then
+      fcode$ = fcode$ + ", "
+    else
+      fcode$ = fcode$ + rCode$[i]
+    endif
+  next
+  CODE$ = trim$(fcode$)
+  SIZE% = rSize%
+end
+'Executes a single instruction at the program counter.
+common def EMUSTEP
+  if !emuStatus% then return
+  var retTable% = 0
+  var arg8%, arg16%, arg8i%, currInstr%
+  arg8% = MEM%[(REG%[REG_PC%] + 1) and &HFFFF]
+  arg16% = MEM%[(REG%[REG_PC%] + 1) and &HFFFF]
+  arg16% = arg16% + ((MEM%[(REG%[REG_PC%] + 2) and &HFFFF]) << 8)
+  arg8i% = MEM%[(REG%[REG_PC%] - 1) and &HFFFF]
+  currInstr% = MEM%[REG%[REG_PC%]]
+  var I%
+  var tmp% = 0
+  var tmp2% = 0
+  var loc% = 256 * currTable% * 3 + 3 * currInstr%  
+  var size% = LOGIC_TABLE%[loc% + 2]
+  loc% = (LOGIC_TABLE%[loc%] << 8) + LOGIC_TABLE%[loc% + 1]
+  for I% = loc% to loc% + size% - 1
+    var op% = LOGIC_TABLE%[I%]
+    var op0% = op% >> 4
+    var op1% = op% and &HF
+    '--------------------------------
+    'lit
+    '--------------------------------
+    if op0% == 0 then
+      T0% = op1%
+    '--------------------------------
+    'register loading
+    '--------------------------------
+    elseif op0% == 1 then
+      if op1% < 8 then
+        T0% = REG%[op1%]
+      else
+        REG%[op1% - 8] = T0%
+      endif 
+    elseif op0% == 2 then
+      if op1% < 8 then
+        T0% = REG%[op1% + 8]
+      elseif T0% == 12 then
+        REG%[op1% + 8 - 8] = T0% mod 256
+      elseif T0% == 13 then
+        REG%[op1% + 8 - 8] = T0% mod 128
+      else
+        REG%[op1% + 8 - 8] = T0%
+      endif
+    '--------------------------------
+    'math
+    '--------------------------------
+    elseif op0% == 3 then
+      if op1% == 0 then
+        tmp% = T0%
+        T0% = T1%
+        T1% = tmp%
+      elseif op1% == 1 then
+        ST0% = T0%
+        ST1% = T1%
+      elseif op1% == 2 then
+        T0% = ST0%
+        T1% = ST1%
+      elseif op1% == 3 then
+        T0% = T0% + T1%
+      elseif op1% == 4 then
+        T0% = T0% - T1%
+      elseif op1% == 5 then
+        T0% = T0% and T1%
+      elseif op1% == 6 then
+        T0% = T0% or T1%
+      elseif op1% == 7 then
+        T0% = T0% xor T1%
+      elseif op1% == 8 then
+        T0% = not T0%
+      elseif op1% == 9 then
+        T0% = signExt%(T0%)
+      elseif op1% == 10 then
+        T0% = (len(replace$(bin$(T0%), "0", "")) + 1) and 1
+      elseif op1% == 11 then
+        T0% = T0% and 1
+      elseif op1% == 12 then
+        T0% = T0% and 3
+      elseif op1% == 13 then
+        T0% = T0% and &HF
+      elseif op1% == 14 then
+        T0% = T0% and &HFF
+      elseif op1% == 15 then
+        T0% = T0% and &HFFFF
+     endif
+    '--------------------------------
+    'memory
+    '--------------------------------
+      elseif op0% == 4 then
+      if op1% == 0 then
+        T0% = MEM%[T1%]
+      elseif op1% == 1 then
+        T0% = MEM%[T1%]
+        T0% = T0% + (MEM%[T1% + 1] << 8)
+      elseif op1% == 2 then
+        MEM%[T1%] = T0% and &HFF
+      elseif op1% == 3 then
+        MEM%[T1%] = T0% and &HFF
+        MEM%[T1% + 1] = (T0% and &HFF00) >> 8
+      endif
+    '--------------------------------
+    'conditions
+    '--------------------------------
+    elseif op0% == 5 then
+      if op1% == 0 then
+        T0% = T0% == T1%
+      elseif op1% == 1 then
+        T0% = T0% != T1%
+      elseif op1% == 2 then
+        T0% = T0% > T1%
+      elseif op1% == 3 then
+        T0% = T0% < T1%
+      endif
+    '--------------------------------
+    'skipping
+    '--------------------------------
+    elseif op0% == 6 then
+      if T0% != 0 then
+        I% = I% + op1%
+      endif
+    elseif op0% == 7 then
+      if T0% != 0 then
+        I% = I% + op1% + 16
+      endif
+    '--------------------------------
+    'shifting
+    '--------------------------------
+    elseif op0% == 8 then
+      T0% = T0% << op1%
+    elseif op0% == 9 then
+      T0% = T0% >> op1%
+    '--------------------------------
+    'adds
+    '--------------------------------
+    elseif op0% == 10 then
+      T0% = T0% + op1%
+    '--------------------------------
+    'arguments
+    '--------------------------------
+    elseif op0% == 11 then
+      if op1% == 0 then
+        T0% = arg8%
+      elseif op1% == 1 then
+        T0% = arg16%
+      elseif op1% == 2 then
+        T0% = arg8i% and &HFF
+      elseif op1% == 3 then
+        if chkcall(CALLBACK_OUT$) then
+          call CALLBACK_OUT$, T1%, T0%
+        endif
+      elseif op1% == 4 then
+        if chkcall(CALLBACK_IN$) then
+          T0% = call(CALLBACK_IN$, T1%)
+        endif
+      endif
+    '--------------------------------
+    'tables
+    '--------------------------------
+    elseif op0% == 12 then
+      retTable% = op1%
+    '--------------------------------
+    'clear
+    '--------------------------------
+    elseif op0% == 13 then
+      if op1% == 0 then
+        T0% = 0
+      elseif op1% == 1 then
+        T0% = T0% and &H00FF
+      elseif op1% == 2 then
+        T0% = T0% and &HFF00
+      elseif op1% == 3 then
+        print "Unimplemented instruction used."
+      elseif op1% == 4 then
+        print "Invalid instruction used."
+      elseif op1% == 5 then
+        emuStatus% = 0
+      endif
+    '--------------------------------
+    'interrupts
+    '--------------------------------
+    elseif op0% == 14 then
+      if op1% < 3 then
+        INT_MODE% = op1%
+      elseif op1% == 3 then
+        INT_ON% = 0
+      elseif op1% == 4 then
+        INT_ON% = 1
+      endif
+    '--------------------------------
+    'flags
+    '--------------------------------
+    elseif op0% == 15 then
+      tmp% = (not (1 << op1%)) and &HFFFF
+      REG%[0] = REG%[0] and tmp%
+      tmp% = (T0% and 1) << op1%
+      REG%[0] = REG%[0] or tmp%
+    endif
+    var J%
+    for J% = 0 to 7
+      REG%[J%] = REG%[J%] and &HFFFF
+    next
+  next
+  currTable% = retTable%
+  if emuStatus% && INT_ON% then
+    if chkcall(CALLBACK_INT$) then
+      var fire%, intarg%
+      call CALLBACK_INT$, INT_MODE% out fire%, intarg%
+      if fire% && (INT_MODE% == 1 || INT_MODE% == 2) then
+        dec REG%[REG_SP%]
+        dec REG%[REG_SP%]
+        MEM%[REG%[REG_SP%]] = REG%[REG_PC%] and &HFF
+        MEM%[REG%[REG_SP%] + 1] = REG%[REG_PC%] >> 8
+        if INT_MODE% == 1 then
+          REG%[REG_PC%] = &H0038
+        elseif INT_MODE% == 2 then
+          var iaddr% = (REG%[REG_I%] << 8) or (intarg% and &HFF)
+          REG%[REG_PC%] = MEM%[iaddr%] or (MEM%[iaddr% + 1] << 8)
+        endif
+      endif
+    endif
+  endif
+end
+'Runs until halted.
+common def EMURUN ADDR%
+  REG%[REG_PC%] = ADDR%
+  emuStatus% = 1
+  while emuStatus%
+    EMUSTEP
+  wend
+end
+common def EMUTRACE
+  EMURUN REG%[REG_PC%]
+end
+common def EMUCONT
+  emuStatus% = 1
+end
+common def EMUSTOP
+  emuStatus% = 0
+end
+common def EMURESET
+  emuStatus% = 0
+  fill REG%, 0
+  currTable% = 0
+  INT_ON% = 0
+  INT_MODE% = 0
+end
+def GetType%(v)
+  if v > 0 == 3 then
+    return 1
+  else
+    return 0
+  endif
+end
+common def EMUPICB v$
+  CALLBACK_IN$ = v$
+end
+common def EMUPOCB v$
+  CALLBACK_OUT$ = v$
+end
+common def EMUINTCB v$
+  CALLBACK_INT$ = v$
+end

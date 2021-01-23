@@ -1,11 +1,73 @@
 option strict
-dim LOGIC_TABLE%[.]
-load "dat:OPCODES", LOGIC_TABLE%, FALSE
+'-------------------------------------------------
+'Compatibility functions
+'-------------------------------------------------
+var C_SLOT% = 1
+def C_UPPER$(s$)
+  var r$ = ""
+  var i%
+  for i% = 0 to len(s$) - 1
+    var v% = asc(s$[i%])
+    if v% >= asc("a") && v% <= asc("z") then
+      push r$, chr$(v% - (asc("a") - asc("A")))
+    else
+      push r$, chr$(v%)
+    endif
+  next
+  return r$
+end
+def C_EVAL(slot%, cmd$)
+  prgedit slot%
+  prgdel -1
+  prgset "common def C_FUNC()"
+  prgset cmd$
+  prgset "end"
+  exec slot%
+  return C_FUNC()
+end
+def C_HARDWARE$()
+  if chkcall("system$") then
+    return "Raspberry Pi"
+  elseif chkcall("emujoyclr") then
+    return "PasocomMini"
+  elseif chkcall("irread") then
+    return "Nintendo Switch"
+  else
+    return "Nintendo 3DS"
+  endif
+  return "Unknown"
+end
+def C_LOAD(slot%, fname$)
+  if len(fname$) < 5 then
+    print "Illegal format(C_LOAD)"
+    stop
+  endif
+  var fmt$ = C_UPPER$(left$(fname$, 4))
+  var cmd$ = ""
+  if C_HARDWARE$() == "Nintendo Switch" then
+    push cmd$, "return loadv(" + chr$(34)
+    push cmd$, fname$ + chr$(34) + ")"
+  elseif fmt$ == "TXT:" then
+    push cmd$, "return load(" + chr$(34)
+    push cmd$, fname$ + chr$(34) + ",false)"
+  else
+    push cmd$, "dim tmp[0]" + chr$(10)
+    push cmd$, "load " + chr$(34) + fname$
+    push cmd$, chr$(34) + "," + "tmp, false"
+    push cmd$, chr$(10) + "return tmp"
+  endif
+  return C_EVAL(slot%, cmd$)
+end
+'-------------------------------------------------
+'Main program
+'-------------------------------------------------
+dim LOGIC_TABLE%[0]
+LOGIC_TABLE% = C_LOAD(C_SLOT%, "DAT:OPCODES")
 var MACHINE_NAME$ = "ZLIB"
 var CALLBACK_OUT$ = ""
 var CALLBACK_IN$ = ""
 var CALLBACK_INT$ = ""
-var LIST$ = load("txt:LIST")
+var LIST$ = C_LOAD(C_SLOT%, "TXT:LIST")
 var T0% = 0
 var T1% = 0
 var ST0% = 0
@@ -32,7 +94,6 @@ var stdin$ = ""
 dim REG%[8 + 4 + 2]
 dim MEM%[&H10000]
 REG%[REG_SP%] = len(MEM%) / 2
-
 common def EMUREGNAME$(ID%)
   if GetType%(ID%) == 1 then
     print "Type mismatch(EMUREGNAME$)"
@@ -396,8 +457,7 @@ common def EMUMEM%(ADDR%)
   return MEM%[ADDR%]
 end
 common def EMULOAD ADDR%, fname$
-  var dat$
-  load "txt:" + fname$, FALSE out dat$
+  var dat$ = C_LOAD(C_SLOT%, "TXT:" + fname$)
   if len(dat$) and 1 == 1 then
     dat$ = mid$(dat$, 0, len(dat$) - 1)
   endif

@@ -1,11 +1,113 @@
-'Initialize.
 option strict
 acls
+'-------------------------------------------------
+'Compatibility functions
+'-------------------------------------------------
+var C_SLOT% = 1
+def C_UPPER$(s$)
+  var r$ = ""
+  var i%
+  for i% = 0 to len(s$) - 1
+    var v% = asc(s$[i%])
+    if v% >= asc("a") && v% <= asc("z") then
+      push r$, chr$(v% - (asc("a") - asc("A")))
+    else
+      push r$, chr$(v%)
+    endif
+  next
+  return r$
+end
+def C_EVAL(slot%, cmd$)
+  prgedit slot%
+  prgdel -1
+  prgset "common def C_FUNC()"
+  prgset cmd$
+  prgset "end"
+  exec slot%
+  return C_FUNC()
+end
+def C_HARDWARE$()
+  if chkcall("system$") then
+    return "Raspberry Pi"
+  elseif chkcall("emujoyclr") then
+    return "PasocomMini"
+  elseif chkcall("irread") then
+    return "Nintendo Switch"
+  else
+    return "Nintendo 3DS"
+  endif
+  return "Unknown"
+end
+def C_COLOR slot%, fg%
+  if fg% < 1 || fg% > 15 then
+    print "Out of range(C_COLOR)"
+    stop
+  endif
+  dim m$[1]
+  push m$, "rgb(0, 0, 0)"
+  push m$, "rgb(128, 0, 0)"
+  push m$, "rgb(255, 0, 0)"
+  push m$, "rgb(0, 128, 0)"
+  push m$, "rgb(0, 255, 0)"
+  push m$, "rgb(128, 128, 0)"
+  push m$, "rgb(255, 255, 0)"
+  push m$, "rgb(0, 0, 128)"
+  push m$, "rgb(0, 0, 255)"
+  push m$, "rgb(128, 0, 128)"
+  push m$, "rgb(255, 0, 255)"
+  push m$, "rgb(0, 128, 128)"
+  push m$, "rgb(0, 255, 255)"
+  push m$, "rgb(128, 128, 128)"
+  push m$, "rgb(255, 255, 255)
+  var cmd$ = ""
+  if C_HARDWARE$() == "Nintendo 3DS" then
+    push cmd$, "color " + str$(fg%)
+  else
+    push cmd$, "color " + m$[fg%]
+  endif
+  push cmd$, chr$(10) + "return 0"
+  var junk% = C_EVAL(slot%, cmd$)
+end
+def C_LOAD(slot%, fname$)
+  if len(fname$) < 5 then
+    print "Illegal format(C_LOAD)"
+    stop
+  endif
+  var fmt$ = C_UPPER$(left$(fname$, 4))
+  var cmd$ = ""
+  if C_HARDWARE$() == "Nintendo Switch" then
+    push cmd$, "return loadv(" + chr$(34)
+    push cmd$, fname$ + chr$(34) + ")"
+  elseif fmt$ == "TXT:" then
+    push cmd$, "return load(" + chr$(34)
+    push cmd$, fname$ + chr$(34) + ",false)"
+  else
+    push cmd$, "dim tmp[0]" + chr$(10)
+    push cmd$, "load " + chr$(34) + fname$
+    push cmd$, chr$(34) + "," + "tmp, false"
+    push cmd$, chr$(10) + "return tmp"
+  endif
+  return C_EVAL(slot%, cmd$)
+end
+def C_MILLISEC%(slot%)
+  if C_HARDWARE$() == "Nintendo Switch" then
+    return C_EVAL(slot%, "return millisec()")
+  else
+    return C_EVAL(slot%, "return millisec")
+  endif
+end
+'-------------------------------------------------
+'Main program
+'-------------------------------------------------
 'Load the library.
-exec "PRG3:SBZ80.LIB"
+var lib$ = C_LOAD(C_SLOT%, "TXT:SBZ80.LIB")
+prgedit 2
+prgdel -1
+prgset lib$ 
+exec 2
 'Define our callback functions.
 var stdin$ = ""
-var itimer% = millisec
+var itimer% = C_MILLISEC%(C_SLOT%)
 common def PORT_OUT PORT%, VALUE%
   if PORT% == 0 then
     print chr$(VALUE%);
@@ -25,7 +127,7 @@ common def PORT_IN(PORT%)
 end
 common def INTERRUPT MODE% out FIRE%, VALUE%
   VALUE% = 0
-  var ntimer% = millisec
+  var ntimer% = C_MILLISEC%(C_SLOT%)
   if MODE% == 1 && (ntimer% - itimer%) > 150 then
     itimer% = ntimer%
     FIRE% = 1
@@ -40,7 +142,7 @@ emuintcb "INTERRUPT"
 'Example menu.
 var choice$
 @beginning
-color #white
+C_COLOR C_SLOT%, 15
 choice$ = ""
 'Get user choice.
 while choice$ != "1" && choice$ != "2"
@@ -53,9 +155,9 @@ while choice$ != "1" && choice$ != "2"
     stop
   endif
   if choice$ != "1" && choice$ != "2" then
-    color #red
+    C_COLOR C_SLOT%, 3
     print "Invalid choice."
-    color #white
+    C_COLOR C_SLOT%, 15
     print "Press any key to continue . . ."
     while len(inkey$()) > 0:wend
     while len(inkey$()) == 0:wend
@@ -71,11 +173,12 @@ endif
 'Run the example program.
 emurun 0
 'Finish up
-color #lime
+C_COLOR C_SLOT%, 5
 print "Demonstration complete."
-color #white
+C_COLOR C_SLOT%, 15
 print "Press any key to continue . . ."
 while len(inkey$()) > 0:wend
 while len(inkey$()) == 0:wend
 cls
 goto @beginning
+
