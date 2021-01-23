@@ -1,5 +1,5 @@
 # SBZ80LIB
-Hosted on `http://github.com/amihart/SBZ80LIB`.
+Hosted on `https://github.com/amihart/SBZ80LIB`.
 A SmileBASIC library for Zilog Z80 assembly inspired by the PasocomMini MZ-80C.
 This was written on Pi STARTER but I plan to eventually port it to 3DS and Switch.
 
