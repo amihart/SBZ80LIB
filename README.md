@@ -2,7 +2,7 @@
 Hosted on `https://github.com/amihart/SBZ80LIB`.
 Most recent public keys: (3DS: `C323Q5GP`); (Switch: `4TKMVH34J`)
 A SmileBASIC library for Zilog Z80 assembly inspired by the PasocomMini MZ-80C.
-This was written on Pi STARTER but I plan to eventually port it to 3DS and Switch.
+This was written on Pi STARTER but I added compatibility functions so it will work on 3DS and Switch.
 
 To download, first make sure you have `GIT` installed onto your Pi STARTER. 
 
