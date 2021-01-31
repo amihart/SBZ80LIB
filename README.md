@@ -155,9 +155,20 @@ Here are the brand new ones.
 -  Input: A state-string
 -  Output: Restores the machine to a previous state
 -  `EMUSTATE STATE$`
+-  Input: Argument number
+-  Output: Returns an argument passed into a function (assuming you compiled the C code using the Small Device C Compiler)
+-  `EMUPARAM%(n%)
+-  Input: A 16-bit return value
+-  Output: Sets the return value of a function (assuming you compiled the C code using the Small Device C Compiler)
+-  `EMURET v%
+-  Input: A memory address
+-  Output: Returns a zero-terminated string from the machine's memory
+-  `EMUSTR$(addr%)
 
 I already discussed the callback commands and `EMULOAD`. I added `EMUMACHINENAME` to also be able to change the machine name since this library doesn't actually emulate any real machines. Unlike the PasocomMini MZ-80C, `EMURUN` does not run the code *in parallel* with the SmileBASIC code. It is blocking and will continue blocking until it hits the HALT instruction. The command `EMUSTEP` executes only one instruction as long as as `EMUSTATUS%()` is 1. You can use this instead for non-blocking execution. Just throw `EMUSTEP` in your main program loop and it will run in parallel. `EMUSTEP` will then step through the program alongside your regular program and could be stopped with `EMUSTOP` and started again with `EMUCONT`. 
 
-Update: In order to avoid having to maintain multiple versions, there are now "compatibility functions" at the top of the library and the example file. The library requires 2 slots now to run, 1 slot for the library itself, and another for the compatibility functions. If the slot it is using conflicts with your program, you can change it by changing `C_SLOT%` at the top of the file.
+Update: ~~In order to avoid having to maintain multiple versions, there are now "compatibility functions" at the top of the library and the example file. The library requires 2 slots now to run, 1 slot for the library itself, and another for the compatibility functions. If the slot it is using conflicts with your program, you can change it by changing `C_SLOT%` at the top of the file.~~
 
 Update 2: Dropped support for some commands like `EMUREG%()` accepting multiple data types (registers represented as their string name or integer ID) because the trick I used to do it apparently does not work in SmileBASIC 4 causing issues on the Switch. All functions that could accept IDs or register names now only can accept register names. I also added `EMUSTATE$()` and `EMUSTATE`. Using `EMUSTATE$()` with the dollar sign rather than the percent sign will not return whether or not the interpreter is running but a string representing the current state of the machine, which then can be restored later using `EMUSTATE`.
+
+Update 3: Updated the compatbility functions to no longer require an additional slot. Also added a few commands. The EMUPARAM and EMURET are meant to be used along side SDCC. If you trigger a port callback within a function, you can identify which function caused the port callback by checking the port data, and then use EMUPARAM to read the parameters of that function and EMURET to set a return value. Effectively you can have the C code call a SmileBASIC function.
