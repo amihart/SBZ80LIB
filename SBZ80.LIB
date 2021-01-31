@@ -2,7 +2,6 @@ option strict
 '-------------------------------------------------
 'Compatibility functions
 '-------------------------------------------------
-var C_SLOT% = 1
 def C_UPPER$(s$)
   var r$ = ""
   var i%
@@ -16,15 +15,6 @@ def C_UPPER$(s$)
   next
   return r$
 end
-def C_EVAL(slot%, cmd$)
-  prgedit slot%
-  prgdel -1
-  prgset "common def C_FUNC()"
-  prgset cmd$
-  prgset "end"
-  exec slot%
-  return C_FUNC()
-end
 def C_HARDWARE$()
   if chkcall("system$") then
     return "Raspberry Pi"
@@ -37,7 +27,7 @@ def C_HARDWARE$()
   endif
   return "Unknown"
 end
-def C_LOAD(slot%, fname$)
+def C_LOAD(fname$)
   if len(fname$) < 5 then
     print "Illegal format(C_LOAD)"
     stop
@@ -45,29 +35,25 @@ def C_LOAD(slot%, fname$)
   var fmt$ = C_UPPER$(left$(fname$, 4))
   var cmd$ = ""
   if C_HARDWARE$() == "Nintendo Switch" then
-    push cmd$, "return loadv(" + chr$(34)
-    push cmd$, fname$ + chr$(34) + ")"
+    return call("loadv", fname$)
   elseif fmt$ == "TXT:" then
-    push cmd$, "return load(" + chr$(34)
-    push cmd$, fname$ + chr$(34) + ",false)"
+    return call("load", fname$, false)
   else
-    push cmd$, "dim tmp[0]" + chr$(10)
-    push cmd$, "load " + chr$(34) + fname$
-    push cmd$, chr$(34) + "," + "tmp, false"
-    push cmd$, chr$(10) + "return tmp"
+    dim tmp[0]
+    call "load", fname$, tmp, false
+    return tmp
   endif
-  return C_EVAL(slot%, cmd$)
 end
 '-------------------------------------------------
 'Main program
 '-------------------------------------------------
 dim LOGIC_TABLE%[0]
-LOGIC_TABLE% = C_LOAD(C_SLOT%, "DAT:OPCODES")
+LOGIC_TABLE% = C_LOAD("DAT:OPCODES")
 var MACHINE_NAME$ = "ZLIBv0.8"
 var CALLBACK_OUT$ = ""
 var CALLBACK_IN$ = ""
 var CALLBACK_INT$ = ""
-var LIST$ = C_LOAD(C_SLOT%, "TXT:LIST")
+var LIST$ = C_LOAD("TXT:LIST")
 var T0% = 0
 var T1% = 0
 var ST0% = 0
@@ -433,7 +419,7 @@ common def EMUMEM%(ADDR%)
   return MEM%[ADDR%]
 end
 common def EMULOAD ADDR%, fname$
-  var dat$ = C_LOAD(C_SLOT%, "TXT:" + fname$)
+  var dat$ = C_LOAD("TXT:" + fname$)
   if len(dat$) and 1 == 1 then
     dat$ = mid$(dat$, 0, len(dat$) - 1)
   endif
@@ -818,5 +804,28 @@ common def EMUPOCB v$
 end
 common def EMUINTCB v$
   CALLBACK_INT$ = v$
+end
+common def EMUPARAM%(n%)
+  var addr% = (REG%[REG_SP%] + 2 + n% * 2) and &HFFFF
+  var ret% = MEM%[addr%]
+  addr% = (addr% + 1) and &HFFFF
+  ret% = ret% or (MEM%[addr%] << 8)
+  return ret%
+end
+common def EMURET v%
+  REG%[REG_HL%] = v% and &HFFFF
+end
+common def EMUSTR$(addr%)
+  var ret$ = ""
+  var i% = 0
+  while MEM%[addr%] != 0
+    push ret$, chr$(MEM%[addr%])
+    addr% = (addr% + 1) and &HFFFF
+    inc i%
+    if i% == &H10000 then
+      break
+    endif
+  wend
+  return ret$
 end
 

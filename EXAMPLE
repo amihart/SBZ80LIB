@@ -3,7 +3,6 @@ acls
 '-------------------------------------------------
 'Compatibility functions
 '-------------------------------------------------
-var C_SLOT% = 1
 def C_UPPER$(s$)
   var r$ = ""
   var i%
@@ -17,15 +16,6 @@ def C_UPPER$(s$)
   next
   return r$
 end
-def C_EVAL(slot%, cmd$)
-  prgedit slot%
-  prgdel -1
-  prgset "common def C_FUNC()"
-  prgset cmd$
-  prgset "end"
-  exec slot%
-  return C_FUNC()
-end
 def C_HARDWARE$()
   if chkcall("system$") then
     return "Raspberry Pi"
@@ -38,37 +28,7 @@ def C_HARDWARE$()
   endif
   return "Unknown"
 end
-def C_COLOR slot%, fg%
-  if fg% < 1 || fg% > 15 then
-    print "Out of range(C_COLOR)"
-    stop
-  endif
-  dim m$[1]
-  push m$, "rgb(0, 0, 0)"
-  push m$, "rgb(128, 0, 0)"
-  push m$, "rgb(255, 0, 0)"
-  push m$, "rgb(0, 128, 0)"
-  push m$, "rgb(0, 255, 0)"
-  push m$, "rgb(128, 128, 0)"
-  push m$, "rgb(255, 255, 0)"
-  push m$, "rgb(0, 0, 128)"
-  push m$, "rgb(0, 0, 255)"
-  push m$, "rgb(128, 0, 128)"
-  push m$, "rgb(255, 0, 255)"
-  push m$, "rgb(0, 128, 128)"
-  push m$, "rgb(0, 255, 255)"
-  push m$, "rgb(128, 128, 128)"
-  push m$, "rgb(255, 255, 255)
-  var cmd$ = ""
-  if C_HARDWARE$() == "Nintendo 3DS" then
-    push cmd$, "color " + str$(fg%)
-  else
-    push cmd$, "color " + m$[fg%]
-  endif
-  push cmd$, chr$(10) + "return 0"
-  var junk% = C_EVAL(slot%, cmd$)
-end
-def C_LOAD(slot%, fname$)
+def C_LOAD(fname$)
   if len(fname$) < 5 then
     print "Illegal format(C_LOAD)"
     stop
@@ -76,38 +36,71 @@ def C_LOAD(slot%, fname$)
   var fmt$ = C_UPPER$(left$(fname$, 4))
   var cmd$ = ""
   if C_HARDWARE$() == "Nintendo Switch" then
-    push cmd$, "return loadv(" + chr$(34)
-    push cmd$, fname$ + chr$(34) + ")"
+    return call("loadv", fname$)
   elseif fmt$ == "TXT:" then
-    push cmd$, "return load(" + chr$(34)
-    push cmd$, fname$ + chr$(34) + ",false)"
+    return call("load", fname$, false)
   else
-    push cmd$, "dim tmp[0]" + chr$(10)
-    push cmd$, "load " + chr$(34) + fname$
-    push cmd$, chr$(34) + "," + "tmp, false"
-    push cmd$, chr$(10) + "return tmp"
+    dim tmp[0]
+    call "load", fname$, tmp, false
+    return tmp
   endif
-  return C_EVAL(slot%, cmd$)
 end
-def C_MILLISEC%(slot%)
-  if C_HARDWARE$() == "Nintendo Switch" then
-    return C_EVAL(slot%, "return millisec()")
+def C_COLOR fg%
+  if fg% < 1 || fg% > 15 then
+    print "Out of range(C_COLOR)"
+    stop
+  endif
+  dim m%[1]
+  push m%, rgb(0, 0, 0)
+  push m%, rgb(128, 0, 0)
+  push m%, rgb(255, 0, 0)
+  push m%, rgb(0, 128, 0)
+  push m%, rgb(0, 255, 0)
+  push m%, rgb(128, 128, 0)
+  push m%, rgb(255, 255, 0)
+  push m%, rgb(0, 0, 128)
+  push m%, rgb(0, 0, 255)
+  push m%, rgb(128, 0, 128)
+  push m%, rgb(255, 0, 255)
+  push m%, rgb(0, 128, 128)
+  push m%, rgb(0, 255, 255)
+  push m%, rgb(128, 128, 128)
+  push m%, rgb(255, 255, 255)
+  var cmd$ = ""
+  if C_HARDWARE$() == "Nintendo 3DS" then
+    call "color", m%[fg%]
   else
-    return C_EVAL(slot%, "return millisec")
+    call "color", m%[fg%]
+  endif
+end
+def C_EVAL(slot%, cmd$)
+  prgedit slot%
+  prgdel -1
+  prgset "common def C_FUNC()"
+  prgset cmd$
+  prgset "end"
+  exec slot%
+  return C_FUNC()
+end
+def C_MILLISEC%()
+  if C_HARDWARE$() == "Nintendo Switch" then
+    return C_EVAL(2, "return millisec()")
+  else
+    return C_EVAL(2, "return millisec")
   endif
 end
 '-------------------------------------------------
 'Main program
 '-------------------------------------------------
 'Load the library.
-var lib$ = C_LOAD(C_SLOT%, "TXT:SBZ80.LIB")
-prgedit 2
+var lib$ = C_LOAD("TXT:SBZ80.LIB")
+prgedit 1
 prgdel -1
 prgset lib$ 
-exec 2
+exec 1
 'Define our callback functions.
 var stdin$ = ""
-var itimer% = C_MILLISEC%(C_SLOT%)
+var itimer% = C_MILLISEC%()
 common def PORT_OUT PORT%, VALUE%
   if PORT% == 0 then
     print chr$(VALUE%);
@@ -127,7 +120,7 @@ common def PORT_IN(PORT%)
 end
 common def INTERRUPT MODE% out FIRE%, VALUE%
   VALUE% = 0
-  var ntimer% = C_MILLISEC%(C_SLOT%)
+  var ntimer% = C_MILLISEC%()
   if MODE% == 1 && (ntimer% - itimer%) > 150 then
     itimer% = ntimer%
     FIRE% = 1
@@ -142,7 +135,7 @@ emuintcb "INTERRUPT"
 'Example menu.
 var choice$
 @beginning
-C_COLOR C_SLOT%, 15
+C_COLOR 15
 choice$ = ""
 'Get user choice.
 while choice$ != "1" && choice$ != "2"
@@ -155,9 +148,9 @@ while choice$ != "1" && choice$ != "2"
     stop
   endif
   if choice$ != "1" && choice$ != "2" then
-    C_COLOR C_SLOT%, 3
+    C_COLOR 3
     print "Invalid choice."
-    C_COLOR C_SLOT%, 15
+    C_COLOR 15
     print "Press any key to continue . . ."
     while len(inkey$()) > 0:wend
     while len(inkey$()) == 0:wend
@@ -173,9 +166,9 @@ endif
 'Run the example program.
 emurun 0
 'Finish up
-C_COLOR C_SLOT%, 5
+C_COLOR 5
 print "Demonstration complete."
-C_COLOR C_SLOT%, 15
+C_COLOR 15
 print "Press any key to continue . . ."
 while len(inkey$()) > 0:wend
 while len(inkey$()) == 0:wend
