@@ -123,13 +123,13 @@ Here are the brand new ones.
 -  `EMUSTATE STATE$`
 -  Input: Argument number
 -  Output: Returns an argument passed into a function (assuming you compiled the C code using the Small Device C Compiler)
--  `EMUPARAM%(n%)
+-  `EMUPARAM%(n%)`
 -  Input: A 16-bit return value
 -  Output: Sets the return value of a function (assuming you compiled the C code using the Small Device C Compiler)
--  `EMURET v%
+-  `EMURET v%`
 -  Input: A memory address
 -  Output: Returns a zero-terminated string from the machine's memory
--  `EMUSTR$(addr%)
+-  `EMUSTR$(addr%)`
 
 I already discussed the callback commands and `EMULOAD`. I added `EMUMACHINENAME` to also be able to change the machine name since this library doesn't actually emulate any real machines. Unlike the PasocomMini MZ-80C, `EMURUN` does not run the code *in parallel* with the SmileBASIC code. It is blocking and will continue blocking until it hits the HALT instruction. The command `EMUSTEP` executes only one instruction as long as as `EMUSTATUS%()` is 1. You can use this instead for non-blocking execution. Just throw `EMUSTEP` in your main program loop and it will run in parallel. `EMUSTEP` will then step through the program alongside your regular program and could be stopped with `EMUSTOP` and started again with `EMUCONT`. 
 
