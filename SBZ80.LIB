@@ -37,10 +37,10 @@ def C_LOAD(fname$)
   if C_HARDWARE$() == "Nintendo Switch" then
     return call("loadv", fname$)
   elseif fmt$ == "TXT:" then
-    return call("load", fname$, false)
+    return call("load", fname$, 0)
   else
     dim tmp[0]
-    call "load", fname$, tmp, false
+    call "load", fname$, tmp, 0
     return tmp
   endif
 end

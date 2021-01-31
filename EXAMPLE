@@ -38,10 +38,10 @@ def C_LOAD(fname$)
   if C_HARDWARE$() == "Nintendo Switch" then
     return call("loadv", fname$)
   elseif fmt$ == "TXT:" then
-    return call("load", fname$, false)
+    return call("load", fname$, 0)
   else
     dim tmp[0]
-    call "load", fname$, tmp, false
+    call "load", fname$, tmp, 0
     return tmp
   endif
 end
@@ -68,7 +68,7 @@ def C_COLOR fg%
   push m%, rgb(255, 255, 255)
   var cmd$ = ""
   if C_HARDWARE$() == "Nintendo 3DS" then
-    call "color", m%[fg%]
+    call "color", fg%
   else
     call "color", m%[fg%]
   endif
@@ -98,12 +98,26 @@ prgedit 1
 prgdel -1
 prgset lib$ 
 exec 1
+'Custom function example.
+common def CUSTOM_FUNC
+  var ret% = rnd(1000)
+  print "A custom function was called!"
+  print "Parameters: ";
+  print EMUPARAM%(0);
+  print ", ";
+  print EMUPARAM%(1)
+  print "Return value: ";
+  print ret%
+  EMURET ret%
+end
 'Define our callback functions.
 var stdin$ = ""
 var itimer% = C_MILLISEC%()
 common def PORT_OUT PORT%, VALUE%
   if PORT% == 0 then
     print chr$(VALUE%);
+  elseif PORT% == 1 then
+    CUSTOM_FUNC
   endif
 end
 common def PORT_IN(PORT%)
@@ -138,16 +152,18 @@ var choice$
 C_COLOR 15
 choice$ = ""
 'Get user choice.
-while choice$ != "1" && choice$ != "2"
+while choice$ != "1" && choice$ != "2" && choice$ != "3"
+  stdin$ = ""
   print "Which example to load?"
   print " 1) File assembled from EXAMPLE.ASM by the assembler Z80ASM"
   print " 2) File compiled from EXAMPLE.C by the compiler SDCC"
-  print " 3) Exit"
+  print " 3) File compiled from CUSTFUNC.C which demonstrates the C code calling a SmileBASIC function."
+  print " 4) Exit"
   input choice$
-  if choice$ == "3" then
+  if choice$ == "4" then
     stop
   endif
-  if choice$ != "1" && choice$ != "2" then
+  if choice$ != "1" && choice$ != "2" && choice$ != "3" then
     C_COLOR 3
     print "Invalid choice."
     C_COLOR 15
@@ -160,8 +176,10 @@ wend
 'Load the example program.
 if choice$ == "1" then
   emuload 0, "EXAMPLE.HEX"
-else
+elseif choice$ == "2" then
   emuload 0, "EXAMPLE_C.HEX"
+elseif choice$ == "3" then
+  emuload 0, "CUSTFUNC.HEX"
 endif
 'Run the example program.
 emurun 0
